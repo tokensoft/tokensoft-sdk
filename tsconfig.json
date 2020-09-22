@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
+        "skipLibCheck": true,
+        "strict": true,
+        "esModuleInterop": true,
+        "module": "system",
+        "moduleResolution": "node",
+        "jsx": "preserve",
+        "baseUrl": "./",
+        "outFile": "build/index.js"
+    },
+    "exclude": [
+        "node_modules"
+    ]
+}
