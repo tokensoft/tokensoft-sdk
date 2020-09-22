@@ -1,0 +1,32 @@
+# tokensoft-sdk
+
+![Logo](./docs/img/logo.png)
+
+#### Roles
+
+Investor:
+ - Retail - Create and manage your account
+ - Institutional - Create an account for your entity or fund
+ - Broker Dealer or RIA - Create accounts on behalf of your clients
+
+Administrator:
+ - Broker Dealer ATS - Create accounts at the Tokensoft Transfer Agent and associate wallets with accounts.
+ - Exchange - Create accounts at Tokensoft or the Tokensoft Transfer agent and associate wallets with accounts.
+
+#### Authentication
+
+Export the authentication token on the command line:
+
+```
+$ export AUTH_TOKEN='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+```
+
+```typescript
+import Tokensoft from 'Tokensoft'
+ 
+const authenticationToken = process.env.AUTH_TOKEN
+// Insert authentication call
+```
+
+## Role: Administrator
+
