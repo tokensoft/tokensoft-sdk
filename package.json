@@ -1,8 +1,8 @@
 {
   "name": "tokensoft-sdk",
-  "version": "1.0.0",
-  "description": "",
-  "main": "build/index.js",
+  "version": "0.0.2",
+  "description": "![Logo](./docs/img/logo.png)",
+  "main": "src/index.js",
   "scripts": {
     "test": "jest"
   },
@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/tokensoft/tokensoft-sdk.git"
   },
-  "author": "",
+  "author": "Tokensoft Inc.",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/tokensoft/tokensoft-sdk/issues"
@@ -38,5 +38,14 @@
       "tsx",
       "js"
     ]
-  }
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "keywords": [
+    "tokensoft",
+    "erc1404",
+    "blockchain"
+  ]
 }

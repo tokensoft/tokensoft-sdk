@@ -25,11 +25,12 @@ Every administrator will need unique credential per asset. Each set of credentia
 Export the authentication token on the command line:
 
 ```
-$ export AUTH_TOKEN='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+$ export KEY_ID='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+$ export SECRET_KEY='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ```typescript
-import Tokensoft from 'Tokensoft'
+import TokensoftSDK from 'Tokensoft'
  
 const authenticationToken = process.env.AUTH_TOKEN
 // Insert authentication call
