@@ -34,7 +34,7 @@ export default class TokensoftApiClient {
             const { data } = await res.json()
             return data
         } catch (e) {
-            console.log('e', e)
+            console.log('Error sending request to TokensoftApi: ', e)
             throw e
         }
     }
