@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 import * as crypto from 'crypto'
 
-export default class TokensoftApiClient {
+export default class TokensoftSDK {
     private keyId: string
     private secretKey: string
     private apiUrl: string
@@ -71,11 +71,11 @@ export default class TokensoftApiClient {
     }
 
     /**
-     * Whitelist a user
+     * Authorize an existing Tokensoft account to be able to hold an asset
      * @param email 
      * @param address 
      */
-    async whitelistUser(email: string, address: string): Promise<string> {
+    async authorizeUser(email: string, address: string): Promise<string> {
         const body = JSON.stringify({
             query: `mutation {
                 whitelistUser(

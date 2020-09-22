@@ -2,6 +2,7 @@
 
 ![Logo](./docs/img/logo.png)
 
+
 #### Roles
 
 Investor:
@@ -12,6 +13,12 @@ Investor:
 Administrator:
  - Broker Dealer ATS - Create accounts at the Tokensoft Transfer Agent and associate wallets with accounts.
  - Exchange - Create accounts at Tokensoft or the Tokensoft Transfer agent and associate wallets with accounts.
+
+
+#### Assets
+
+Every administrator will need unique credential per asset. Each set of credentials will enable an administrator to whitelist wallets to be authorized to hold the tokens.
+
 
 #### Authentication
 
