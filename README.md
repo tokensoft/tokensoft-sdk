@@ -2,7 +2,11 @@
 
 ![Logo](./docs/img/logo.png)
 
+#### Installation
 
+```
+$ yarn add tokensoft-sdk
+```
 #### Roles
 
 Investor:
@@ -20,20 +24,29 @@ Administrator:
 Every administrator will need unique credential per asset. Each set of credentials will enable an administrator to whitelist wallets to be authorized to hold the tokens.
 
 
-#### Authentication
+#### Administrator Authentication
 
 Export the authentication token on the command line:
 
 ```
-$ export AUTH_TOKEN='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+$ export KEY_ID='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+$ export SECRET_KEY='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
+
+#### Authorize a User
+
+In order for an investor or user to hold a security token, they must be authorized to do so by the administrator. The sample code below demonstrates this process.
 
 ```typescript
-import Tokensoft from 'Tokensoft'
- 
-const authenticationToken = process.env.AUTH_TOKEN
-// Insert authentication call
+import TokensoftSDK from 'tokensoft-sdk'
+
+const issuerEndpoint = 'https://app.arcalabs.com'
+
+const client = new TokensoftSDK(issuerEndpoint, process.env.KEY_ID, process.env.SECRET_KEY)
+
+const transactionHash = await client.authorizeUser('jay_clayton@gmail.com', '0x00192fb10df ... 3cd1bf599e8')
+
 ```
 
-## Role: Administrator
+
 
