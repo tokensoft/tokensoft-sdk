@@ -42,9 +42,9 @@ import TokensoftSDK from 'tokensoft-sdk'
 
 const issuerEndpoint = 'https://app.arcalabs.com'
 
-const client = new TokensoftSDK(apiUrl: issuerEndpoint, keyId: process.env.KEY_ID, secreyKey: process.env.SECRET_KEY)
+const client = new TokensoftSDK(issuerEndpoint, process.env.KEY_ID, process.env.SECRET_KEY)
 
-await client.authorizeUser(email: 'jay_clayton@gmail.com', '0x00192fb10df ... 3cd1bf599e8')
+const transactionHash = await client.authorizeUser('jay_clayton@gmail.com', '0x00192fb10df ... 3cd1bf599e8')
 
 ```
 
