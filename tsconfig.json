@@ -1,21 +1,19 @@
 {
     "compilerOptions": {
         "target": "es5",
-        "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
-        ],
-        "skipLibCheck": true,
+        "module": "commonjs",
+        "declaration": true,
         "strict": true,
+        "alwaysStrict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
         "esModuleInterop": true,
-        "module": "system",
-        "moduleResolution": "node",
-        "jsx": "preserve",
-        "baseUrl": "./",
-        "outFile": "build/index.js"
+        "outDir": "build"
     },
+    "include": ["src"],
     "exclude": [
-        "node_modules"
+        "node_modules",
+        "test"
     ]
 }

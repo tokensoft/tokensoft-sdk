@@ -13,18 +13,29 @@ interface KYCInfoInput {
     }
 }
 
-export default class TokensoftSDK {
+export class TokensoftSDK {
     private keyId: string
     private secretKey: string
     private apiUrl: string
 
     constructor(apiUrl: string, keyId: string, secretKey: string) {
         this.apiUrl = apiUrl
+        if (!apiUrl) {
+            throw new Error('missing apiUrl argument')
+        }
+
         this.keyId = keyId
+        if (!keyId) {
+            throw new Error('missing keyId argument')
+        }
+
         this.secretKey = secretKey
+        if (!secretKey) {
+            throw new Error('missing secretKey argument')
+        }
     }
 
-    private async sendRequest(body: string) {
+    async sendRequest(body: string) {
         const serverTime = await this.getServerTime()
         const text = serverTime + body
         const hmac = crypto.createHmac('sha256', this.secretKey)
@@ -66,7 +77,7 @@ export default class TokensoftSDK {
             method: 'post',
             body
         }
-        
+
         const res = await fetch(this.apiUrl, options)
         const { data } = await res.json()
         return data.time
@@ -84,8 +95,8 @@ export default class TokensoftSDK {
 
     /**
      * Authorize an existing Tokensoft account to be able to hold an asset
-     * @param email 
-     * @param address 
+     * @param email
+     * @param address
      */
     async authorizeUser(email: string, address: string, kycInfo: KYCInfoInput): Promise<string> {
         const body = JSON.stringify({
