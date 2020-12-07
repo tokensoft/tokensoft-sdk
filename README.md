@@ -26,7 +26,7 @@ Every administrator will need unique credential per asset. Each set of credentia
 
 #### Administrator Authentication
 
-Export the authentication token on the command line:
+Generate an API key from the `dashboard/api-settings` page of the TokenSoft admin platform and export it on the command line:
 
 ```
 $ export KEY_ID='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
