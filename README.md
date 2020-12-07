@@ -38,15 +38,22 @@ $ export SECRET_KEY='TSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 In order for an investor or user to hold a security token, they must be authorized to do so by the administrator. The sample code below demonstrates this process.
 
 ```typescript
-import TokensoftSDK from 'tokensoft-sdk'
+import { TokensoftSDK } from 'tokensoft-sdk'
 
 const issuerEndpoint = 'https://app.arcalabs.com'
 
 const client = new TokensoftSDK(issuerEndpoint, process.env.KEY_ID, process.env.SECRET_KEY)
 
-const transactionHash = await client.authorizeUser('jay_clayton@gmail.com', '0x00192fb10df ... 3cd1bf599e8')
-
+const transactionHash = await client.authorizeUser('jay_clayton@gmail.com', '0x00192fb10df ... 3cd1bf599e8', {
+  firstName: "john",
+    lastName: "doe",
+    address: {
+      streetAddress: "123 abc street",
+      city: "San Francisco",
+      state: "CA",
+      zip: "94000",
+      country: "US"
+    }
+  }
+)
 ```
-
-
-

@@ -1,6 +1,18 @@
 import fetch from 'node-fetch'
 import * as crypto from 'crypto'
 
+interface KYCInfoInput {
+    firstName: string
+    lastName: string
+    address: {
+        streetAddress: string
+        city: string
+        state: string
+        zip: string
+        country: string
+    }
+}
+
 export default class TokensoftSDK {
     private keyId: string
     private secretKey: string
@@ -75,12 +87,24 @@ export default class TokensoftSDK {
      * @param email 
      * @param address 
      */
-    async authorizeUser(email: string, address: string): Promise<string> {
+    async authorizeUser(email: string, address: string, kycInfo: KYCInfoInput): Promise<string> {
         const body = JSON.stringify({
             query: `mutation {
                 whitelistUser(
                     email: "${email}",
-                    address: "${address}"
+                    address: "${address}",
+                    kyc: {
+                        firstName: "${kycInfo.firstName}",
+                        lastName: "${kycInfo.lastName}",
+                        address: {
+                          streetAddress: "${kycInfo.address.streetAddress}",
+                          city: "${kycInfo.address.city}",
+                          state: "${kycInfo.address.state}",
+                          zip: "${kycInfo.address.zip}",
+                          country:"${kycInfo.address.country}"
+                        }
+                      }
+                    }
                 )
             }`
         })
