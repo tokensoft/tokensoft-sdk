@@ -43,10 +43,10 @@ export class TokensoftSDK {
         const signature = hmac.digest('hex')
         const options = {
             headers: {
-              'access-key': this.keyId,
-              'access-sign': signature,
-              'access-timestamp': serverTime,
-              'Content-Type': 'application/json',
+                'access-key': this.keyId,
+                'access-sign': signature,
+                'access-timestamp': serverTime,
+                'Content-Type': 'application/json',
             },
             method: 'post',
             body
@@ -122,4 +122,51 @@ export class TokensoftSDK {
 
         return this.sendRequest(body)
     }
+
+    /**
+     * Authorize an existing Tokensoft account to be able to hold an asset
+     * @param email
+     * @param address
+     */
+    async AdminParticipantUsers(
+        searchValue: string,
+        page: number,
+        pageSize: number,
+        sortDir: string,
+        sortByColumn: string
+    ): Promise<string> {
+        const body = JSON.stringify({
+            query: `query {
+                adminParticipantUsers(
+                    searchValue: "${searchValue}",
+                    page: "${page}",
+                    pageSize: "${pageSize}",
+                    sortDir: "${sortDir}",
+                    sortByColumn: "${sortByColumn}"
+                ) {
+			        totalUsers
+                    users {		   
+                        id  
+                        acceptedTerms
+                        paymentCompleted
+                        selectedPaymentMethod
+                        kycStatus
+                        kycExpirationDate
+                        paymentAmount
+                        paymentExpiration
+                        usdTrackingNumber
+                        ethPaymentCode
+                        ethPaymentPayload
+                        paymentDetailsConfirmed
+                        updatedAt
+                        userId { }
+                        participatingRoundIds
+                    }
+                }
+            }`
+        })
+
+        return this.sendRequest(body)
+    }
+
 }

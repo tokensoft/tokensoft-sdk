@@ -20,4 +20,9 @@ describe('Base Unit Tests', () => {
     const client = await new TokensoftSDK('https://example.com', 'key', 'secret')
     expect(client.authorizeUser).toBeTruthy()
   })
+
+  it('can get dashboard information', async() => {
+      const client = await new TokensoftSDK('https://example.com', 'key', 'secret')
+      expect(client.AdminParticipantUsers).toBeTruthy()
+  })
 })
