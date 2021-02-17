@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 import * as crypto from 'crypto'
 
-interface KYCInfoInput {
+export interface KYCInfoInput {
     firstName: string
     lastName: string
     address: {
