@@ -22,7 +22,7 @@ describe('Base Unit Tests', () => {
       "currentUser",
       "authorizeUser",
       "AdminParticipantUsers",
-      "getTransferRestrictions"
+      "detectTransferRestriction"
     ];
 
     clientPublicMethods.forEach(method => {
@@ -32,7 +32,7 @@ describe('Base Unit Tests', () => {
     });
   });
 
-  describe('`getTransferRestrictions` method', () => {
+  describe('`detectTransferRestriction` method', () => {
     let client: TokensoftSDK;
     beforeEach(async () => {
       client = await new TokensoftSDK('https://example.com', 'key', 'secret', new FakeWeb3());
@@ -52,20 +52,20 @@ describe('Base Unit Tests', () => {
 
     it('should throw when no ethereum provider provided', async () => {
       client = await new TokensoftSDK('https://example.com', 'key', 'secret');
-      expect(async () => await client.getTransferRestrictions(testTx))
+      expect(async () => await client.detectTransferRestriction(testTx))
         .rejects
         .toThrow(/No Ethereum client provided/);
     });
 
     it('should return [] when no transfer restrictions detected', async () => {
-      const restrictions = await client.getTransferRestrictions(testTx);
+      const restrictions = await client.detectTransferRestriction(testTx);
       expect(restrictions).toMatchObject([]);
     });
 
     it('should return obstruction when transfer restriction detected', async () => {
       FakeContract.values.call.detectTransferRestriction = 1;
       FakeContract.values.call.messageForTransferRestriction = "Whitelist issue";
-      const restrictions = await client.getTransferRestrictions(testTx);
+      const restrictions = await client.detectTransferRestriction(testTx);
       expect(restrictions).toMatchObject([{
         code: "1",
         text: "Whitelist issue",

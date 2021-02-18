@@ -190,7 +190,7 @@ export class TokensoftSDK {
      * Takes a transaction and returns an array (possibly empty) of reasons the transaction would
      * fail. If the array is empty, the transaction is not expected to fail.
      */
-    async getTransferRestrictions(
+    async detectTransferRestriction(
         tx: Transaction
     ): Promise<Array<{ code: string; text: string; }>> {
         // The Ethereum provider is optional, so we need to check for that first and throw if we
