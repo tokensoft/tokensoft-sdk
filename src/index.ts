@@ -1,5 +1,9 @@
 import fetch from 'node-fetch'
 import * as crypto from 'crypto'
+import * as Eth from "./Eth";
+import { ERC1404 } from "./ERC1404";
+
+export { ERC1404, Eth };
 
 export interface KYCInfoInput {
     firstName: string
@@ -13,12 +17,20 @@ export interface KYCInfoInput {
     }
 }
 
+export interface Transaction {
+    tokenAddress: string;
+    fromWallet: string;
+    toWallet: string;
+    qtyBaseUnits: number;
+}
+
 export class TokensoftSDK {
     private keyId: string
     private secretKey: string
     private apiUrl: string
+    private web3: Eth.Web3Interface | null;
 
-    constructor(apiUrl: string, keyId: string, secretKey: string) {
+    constructor(apiUrl: string, keyId: string, secretKey: string, web3?: Eth.Web3Interface) {
         this.apiUrl = apiUrl
         if (!apiUrl) {
             throw new Error('missing apiUrl argument')
@@ -33,6 +45,8 @@ export class TokensoftSDK {
         if (!secretKey) {
             throw new Error('missing secretKey argument')
         }
+
+        this.web3 = web3 || null;
     }
 
     async sendRequest(body: string) {
@@ -172,4 +186,37 @@ export class TokensoftSDK {
         return this.sendRequest(body)
     }
 
+    /**
+     * Takes a transaction and returns an array (possibly empty) of reasons the transaction would
+     * fail. If the array is empty, the transaction is not expected to fail.
+     */
+    async getTransferRestrictions(
+        tx: Transaction
+    ): Promise<Array<{ code: string; text: string; }>> {
+        // The Ethereum provider is optional, so we need to check for that first and throw if we
+        // don't have it
+        if (!this.web3) {
+            throw new Error(
+                `Programmer: No Ethereum client provided, so can't access Ethereum. Fix this by ` +
+                `providing an Ethereum provider (e.g., web3 instance) on instantiation.`
+            );
+        }
+
+        // If we've got an ethereum provider, we'll use the tx data to see if the transaction can
+        // go through
+        const token = new this.web3.eth.Contract(ERC1404.abi, tx.tokenAddress);
+
+        const code = await token.methods.detectTransferRestriction(
+            tx.fromWallet,
+            tx.toWallet,
+            tx.qtyBaseUnits
+        ).call();
+
+        if (code === 0) {
+            return [];
+        }
+
+        const text = <string> await token.methods.messageForTransferRestriction(code).call();
+        return [{ code: String(code), text }];
+    }
 }
