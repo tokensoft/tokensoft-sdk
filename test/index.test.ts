@@ -8,14 +8,14 @@ describe('Base Unit Tests', () => {
   })
 
   it('can instantiate the Tokensoft SDK', async() => {
-    expect(await new TokensoftSDK('https://example.com', 'key', 'secret')).toBeTruthy()
+    expect(new TokensoftSDK('https://example.com', 'key', 'secret')).toBeTruthy()
   })
 
   // Check to ensure that the basic client public interface remains as expected
   describe('Public Inteface', () => {
     let client: TokensoftSDK;
-    beforeEach(async () => {
-      client = await new TokensoftSDK('https://example.com', 'key', 'secret');
+    beforeEach(() => {
+      client = new TokensoftSDK('https://example.com', 'key', 'secret');
     });
 
     const clientPublicMethods: Array<keyof TokensoftSDK> = [
@@ -34,8 +34,8 @@ describe('Base Unit Tests', () => {
 
   describe('`detectTransferRestriction` method', () => {
     let client: TokensoftSDK;
-    beforeEach(async () => {
-      client = await new TokensoftSDK('https://example.com', 'key', 'secret', new FakeWeb3());
+    beforeEach(() => {
+      client = new TokensoftSDK('https://example.com', 'key', 'secret', new FakeWeb3());
     });
 
     // Reset FakeContract values after each test
@@ -51,7 +51,7 @@ describe('Base Unit Tests', () => {
     };
 
     it('should throw when no ethereum provider provided', async () => {
-      client = await new TokensoftSDK('https://example.com', 'key', 'secret');
+      client = new TokensoftSDK('https://example.com', 'key', 'secret');
       expect(async () => await client.detectTransferRestriction(testTx))
         .rejects
         .toThrow(/No Ethereum client provided/);
