@@ -24,13 +24,29 @@ export interface Transaction {
     qtyBaseUnits: number;
 }
 
+export interface ClientOptions {
+    // The maximum age for the server time cache
+    maxTimecacheAgeMs: number;
+}
+
 export class TokensoftSDK {
+    private timecache: { serverMs: number, localMs: number } | null = null;
+    private opts: ClientOptions;
     private keyId: string
     private secretKey: string
     private apiUrl: string
     private web3: Eth.Web3Interface | null;
 
-    constructor(apiUrl: string, keyId: string, secretKey: string, web3?: Eth.Web3Interface) {
+    constructor(apiUrl: string, keyId: string, secretKey: string, web3: Eth.Web3Interface, opts?: Partial<ClientOptions>);
+    constructor(apiUrl: string, keyId: string, secretKey: string, opts: Partial<ClientOptions>);
+    constructor(apiUrl: string, keyId: string, secretKey: string);
+    constructor(
+        apiUrl: string,
+        keyId: string,
+        secretKey: string,
+        web3OrOpts?: Eth.Web3Interface | Partial<ClientOptions>,
+        opts?: Partial<ClientOptions>
+    ) {
         this.apiUrl = apiUrl
         if (!apiUrl) {
             throw new Error('missing apiUrl argument')
@@ -46,7 +62,15 @@ export class TokensoftSDK {
             throw new Error('missing secretKey argument')
         }
 
-        this.web3 = web3 || null;
+        this.web3 = isWeb3(web3OrOpts) ? web3OrOpts : null;
+        this.opts = {
+            maxTimecacheAgeMs: 1200000, // 20 minutes
+            ...(
+                isWeb3(web3OrOpts)
+                ? (opts || {})
+                : (web3OrOpts || {})
+            )
+        }
     }
 
     async sendRequest(body: string) {
@@ -80,21 +104,38 @@ export class TokensoftSDK {
      * Get the current server time
      */
     async getServerTime(): Promise<string> {
-        const request = {
-            query: '{ time }'
-        }
-        const body = JSON.stringify(request)
-        const options = {
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            method: 'post',
-            body
+        // Only get time from server if we don't have a recent cache of it
+        if (
+            !this.timecache ||
+            ((Date.now() - this.timecache.localMs) > this.opts.maxTimecacheAgeMs)
+        ) {
+            const request = {
+                query: '{ time }'
+            }
+            const body = JSON.stringify(request)
+            const options = {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                method: 'post',
+                body
+            }
+
+            // Fetch time from server
+            const res = await fetch(this.apiUrl, options)
+            const { data } = await res.json()
+
+            // Use time from server to construct time cache
+            this.timecache = {
+                serverMs: Number(data.time),
+                localMs: Date.now(),
+            }
         }
 
-        const res = await fetch(this.apiUrl, options)
-        const { data } = await res.json()
-        return data.time
+        // Return string representation of the adjusted server time
+        return String(
+            this.timecache.serverMs + (Date.now() - this.timecache.localMs)
+        );
     }
 
     /**
@@ -219,4 +260,8 @@ export class TokensoftSDK {
         const text = <string> await token.methods.messageForTransferRestriction(code).call();
         return [{ code: String(code), text }];
     }
+}
+
+const isWeb3 = (thing: any): thing is Eth.Web3Interface => {
+    return thing !== undefined &&  thing.eth !== undefined;
 }
