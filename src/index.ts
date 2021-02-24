@@ -74,72 +74,33 @@ export class TokensoftSDK {
         }
     }
 
-    async sendRequest<
-        Data extends { [func: string]: unknown } = { [func: string]: unknown },
-        Errors extends unknown = unknown
-    >(body: string): Promise<GraphQL.Response<Data, Errors>> {
-        const serverTime = await this.getServerTime()
-        const text = serverTime + body
-        const hmac = crypto.createHmac('sha256', this.secretKey)
-        hmac.update(text)
-        const signature = hmac.digest('hex')
-        const options = {
-            headers: {
-                'access-key': this.keyId,
-                'access-sign': signature,
-                'access-timestamp': serverTime,
-                'Content-Type': 'application/json',
-            },
-            method: 'post',
-            body
-        }
-
-        try {
-            const res = await fetch(this.apiUrl, options)
-            return await res.json()
-        } catch (e) {
-            console.log('Error sending request to TokensoftApi: ', e)
-            throw e
-        }
-    }
+    /**
+     *
+     *
+     *
+     *
+     * Higher-level flow functions
+     *
+     * Functions in this section represent more or less complete flows that are common in
+     * interactions between Tokensoft and its partners. These include things like idempotent
+     * user registration and whitelisting, and attempted token transfers.
+     *
+     *
+     *
+     *
+     */
 
     /**
-     * Get the current server time
+     *
+     *
+     *
+     *
+     * Low-level API Passthrough Functions
+     *
+     *
+     *
+     *
      */
-    async getServerTime(): Promise<string> {
-        // Only get time from server if we don't have a recent cache of it
-        if (
-            !this.timecache ||
-            ((Date.now() - this.timecache.localMs) > this.opts.maxTimecacheAgeMs)
-        ) {
-            const request = {
-                query: '{ time }'
-            }
-            const body = JSON.stringify(request)
-            const options = {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                method: 'post',
-                body
-            }
-
-            // Fetch time from server
-            const res = await fetch(this.apiUrl, options)
-            const { data } = await res.json()
-
-            // Use time from server to construct time cache
-            this.timecache = {
-                serverMs: Number(data.time),
-                localMs: Date.now(),
-            }
-        }
-
-        // Return string representation of the adjusted server time
-        return String(
-            this.timecache.serverMs + (Date.now() - this.timecache.localMs)
-        );
-    }
 
     /**
      * Get currently authenticated user
@@ -187,20 +148,6 @@ export class TokensoftSDK {
         const res = await this.sendRequest<{ "whitelistUser": string }>(body);
         const data = this.throwErrors(res);
         return data.whitelistUser;
-    }
-
-    protected throwErrors<Data extends { [func: string]: unknown }, ErrorTypes = unknown>(
-        res: GraphQL.Response<Data,ErrorTypes>
-    ): NonNullable<Data> {
-        if (!res.data && res.errors && res.errors.length) {
-            throw new Error(
-                `Errors: ` +
-                res.errors.map(
-                    e => `${e.name}: ${e.message}${e.data ? ` - ${JSON.stringify(e.data)}` : ``}`
-                ).join("; ")
-            );
-        }
-        return res.data!
     }
 
     /**
@@ -277,6 +224,18 @@ export class TokensoftSDK {
     }
 
     /**
+     *
+     *
+     *
+     *
+     * Blockchain functions
+     *
+     *
+     *
+     *
+     */
+
+    /**
      * Takes a transaction and returns an array (possibly empty) of reasons the transaction would
      * fail. If the array is empty, the transaction is not expected to fail.
      */
@@ -308,6 +267,104 @@ export class TokensoftSDK {
 
         const text = <string> await token.methods.messageForTransferRestriction(code).call();
         return [{ code: String(code), text }];
+    }
+
+    /**
+     *
+     *
+     *
+     *
+     * Internal Utilities
+     *
+     *
+     *
+     *
+     */
+
+    async sendRequest<
+        Data extends { [func: string]: unknown } = { [func: string]: unknown },
+        Errors extends unknown = unknown
+    >(body: string): Promise<GraphQL.Response<Data, Errors>> {
+        const serverTime = await this.getServerTime()
+        const text = serverTime + body
+        const hmac = crypto.createHmac('sha256', this.secretKey)
+        hmac.update(text)
+        const signature = hmac.digest('hex')
+        const options = {
+            headers: {
+                'access-key': this.keyId,
+                'access-sign': signature,
+                'access-timestamp': serverTime,
+                'Content-Type': 'application/json',
+            },
+            method: 'post',
+            body
+        }
+
+        try {
+            const res = await fetch(this.apiUrl, options)
+            return await res.json()
+        } catch (e) {
+            console.log('Error sending request to TokensoftApi: ', e)
+            throw e
+        }
+    }
+
+    /**
+     * Get the current server time
+     */
+    async getServerTime(): Promise<string> {
+        // Only get time from server if we don't have a recent cache of it
+        if (
+            !this.timecache ||
+            ((Date.now() - this.timecache.localMs) > this.opts.maxTimecacheAgeMs)
+        ) {
+            const request = {
+                query: '{ time }'
+            }
+            const body = JSON.stringify(request)
+            const options = {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                method: 'post',
+                body
+            }
+
+            // Fetch time from server
+            const res = await fetch(this.apiUrl, options)
+            const { data } = await res.json()
+
+            // Use time from server to construct time cache
+            this.timecache = {
+                serverMs: Number(data.time),
+                localMs: Date.now(),
+            }
+        }
+
+        // Return string representation of the adjusted server time
+        return String(
+            this.timecache.serverMs + (Date.now() - this.timecache.localMs)
+        );
+    }
+
+    /**
+     * Take a raw GraphQL response and throw it if it lacks data _and_ has errors.
+     * **NOTE:** This will NOT throw errors if the errors co-exist with valid data. In that case,
+     * the errors are considered warnings and are not fatal.
+     */
+    protected throwErrors<Data extends { [func: string]: unknown }, ErrorTypes = unknown>(
+        res: GraphQL.Response<Data,ErrorTypes>
+    ): NonNullable<Data> {
+        if (!res.data && res.errors && res.errors.length) {
+            throw new Error(
+                `Errors: ` +
+                res.errors.map(
+                    e => `${e.name}: ${e.message}${e.data ? ` - ${JSON.stringify(e.data)}` : ``}`
+                ).join("; ")
+            );
+        }
+        return res.data!
     }
 }
 
