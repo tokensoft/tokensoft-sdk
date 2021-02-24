@@ -2,6 +2,7 @@ import fetch from 'node-fetch'
 import * as crypto from 'crypto'
 import * as Eth from "./Eth";
 import { ERC1404 } from "./ERC1404";
+import * as GraphQL from "./GraphQL";
 
 export { ERC1404, Eth };
 
@@ -73,7 +74,10 @@ export class TokensoftSDK {
         }
     }
 
-    async sendRequest(body: string) {
+    async sendRequest<
+        Data extends { [func: string]: unknown } = { [func: string]: unknown },
+        Errors extends unknown = unknown
+    >(body: string): Promise<GraphQL.Response<Data, Errors>> {
         const serverTime = await this.getServerTime()
         const text = serverTime + body
         const hmac = crypto.createHmac('sha256', this.secretKey)
@@ -92,8 +96,7 @@ export class TokensoftSDK {
 
         try {
             const res = await fetch(this.apiUrl, options)
-            const { data } = await res.json()
-            return data
+            return await res.json()
         } catch (e) {
             console.log('Error sending request to TokensoftApi: ', e)
             throw e
@@ -140,12 +143,18 @@ export class TokensoftSDK {
 
     /**
      * Get currently authenticated user
+     *
+     * TODO: This return type is likely not intended. However, it is what is currently implemented,
+     * so we're just making it explicit and not changing it. It should probably be changed after
+     * discussion with other contributors.
      */
-    async currentUser() {
+    async currentUser(): Promise<{ currentUser: { id: string; email: string } }> {
         const body = JSON.stringify({
             query: '{ currentUser {id email } }'
         })
-        return this.sendRequest(body)
+        const res = await this.sendRequest<{ currentUser: { id: string; email: string } }>(body);
+        const data = this.throwErrors(res);
+        return data;
     }
 
     /**
@@ -175,7 +184,23 @@ export class TokensoftSDK {
             }`
         })
 
-        return this.sendRequest(body)
+        const res = await this.sendRequest<{ "whitelistUser": string }>(body);
+        const data = this.throwErrors(res);
+        return data.whitelistUser;
+    }
+
+    protected throwErrors<Data extends { [func: string]: unknown }, ErrorTypes = unknown>(
+        res: GraphQL.Response<Data,ErrorTypes>
+    ): NonNullable<Data> {
+        if (!res.data && res.errors && res.errors.length) {
+            throw new Error(
+                `Errors: ` +
+                res.errors.map(
+                    e => `${e.name}: ${e.message}${e.data ? ` - ${JSON.stringify(e.data)}` : ``}`
+                ).join("; ")
+            );
+        }
+        return res.data!
     }
 
     /**
@@ -192,7 +217,7 @@ export class TokensoftSDK {
         pageSize: number,
         sortDir: string,
         sortByColumn: string
-    ): Promise<string> {
+    ) {
         const body = JSON.stringify({
             query: `query {
                 adminParticipantUsers(
@@ -224,7 +249,31 @@ export class TokensoftSDK {
             }`
         })
 
-        return this.sendRequest(body)
+        const res = await this.sendRequest<{
+            adminParticipantUsers: {
+                totalUsers: number;
+                users: Array<Pick<
+                    GraphQL.AdminParticipantUserWithSaleStatus,
+                    | "id"
+                    | "acceptedTerms"
+                    | "paymentCompleted"
+                    | "selectedPaymentMethod"
+                    | "kycStatus"
+                    | "kycExpirationDate"
+                    | "paymentAmount"
+                    | "paymentExpiration"
+                    | "usdTrackingNumber"
+                    | "ethPaymentCode"
+                    | "ethPaymentPayload"
+                    | "paymentDetailsConfirmed"
+                    | "updatedAt"
+                    | "userId"
+                    | "participatingRoundIds"
+                >>;
+            }
+        }>(body);
+        const data = this.throwErrors(res);
+        return data.adminParticipantUsers;
     }
 
     /**
