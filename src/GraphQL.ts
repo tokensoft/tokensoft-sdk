@@ -22,7 +22,7 @@ export type ApiError<T = unknown> = {
  */
 export type Response<Data extends { [func: string]: unknown }, ErrorTypes = unknown> = {
     errors?: Array<ApiError<ErrorTypes>>;
-    data: Data | null;
+    data: { [K in keyof Data]: Data[K] | null };
 }
 
 /**
@@ -154,3 +154,95 @@ export type AdminParticipantUserWithSaleStatus = {
 
 export type AdminParticipantUser = User;
 
+export type Round = {
+    extraKycCountriesForEntityInvestor: Array<string>;
+    id: string;
+    name: string;
+    roundDescription: string;
+    clearedUsers: Array<string>;
+    clearanceRequired: boolean;
+    saleCap: number;
+    saleCapHit: boolean;
+    saleTermsUri: string;
+    startDate: string;
+    endDate: string;
+    createdAt: string;
+    tenant: string;
+    tokenContract: string;
+    // And other properties....
+}
+
+export type SaleStatus = {
+    id: string;
+    userId: string;
+    userObj: User
+    tenantId: string;
+    acceptedTerms: boolean;
+    entityRoles: Array<EntityRoles>;
+    minPurchaseAmount: number;
+    maxPurchaseAmount: number;
+    paymentCompleted: boolean;
+    kycStatus: string;
+    kycExpirationDate: Datetime;
+    kycOnly: boolean;
+    externalIdentifier: string;
+    title: string;
+    // And other properties....
+}
+
+export type EntityRoles = {
+    entitySaleStatusId: string;
+    name: string;
+    percentOwnership: string;
+    accepted: string;
+    roles: Array<string>;
+    entityName: string;
+    entityEmail: string;
+    inviteDate: Datetime;
+}
+
+export type AccountInputType = {
+    address: string;
+    name?: string | null;
+    saleStatusId: string;
+    chain: CHAINS;
+    type: RECEIVE_ADDRESS_TYPE;
+    primary?: boolean | null;
+}
+
+export type Account = AccountInputType & {
+    id: string;
+    createdAt: Datetime;
+    primary: boolean;
+    enabled: boolean;
+    balance: string | null;
+    whitelist: string | null;
+    whitelistRequest: string | null;
+    //revokeRequest: RevokeRequestType
+}
+
+export enum CHAINS {
+    BITCOIN = "BITCOIN",
+    ETHEREUM = "ETHEREUM",
+    AVA = "AVA",
+    CYPHERIUM = "CYPHERIUM",
+    RAVEN = "RAVEN",
+    FINDORA = "FINDORA",
+}
+
+export enum RECEIVE_ADDRESS_TYPE {
+    ANCHORAGE = "ANCHORAGE",
+    AVA = "AVA",
+    CYPHERIUM = "CYPHERIUM",
+    FINDORA = "FINDORA",
+    BITGO = "BITGO",
+    GEMINI = "GEMINI",
+    HEX = "HEX",
+    KOINE = "KOINE",
+    TIA = "TIA",
+    ETHEREUM = "ETHEREUM",
+    RAVEN = "RAVEN",
+    LEDGER = "LEDGER",
+    KOMAINU = "KOMAINU",
+    UNKNOWN = "UNKNOWN",
+}

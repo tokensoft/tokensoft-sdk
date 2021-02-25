@@ -25,6 +25,18 @@ export interface Transaction {
     qtyBaseUnits: number;
 }
 
+export enum ErrorCodes {
+    DUP_ADDR = "Address In Use",
+    DUP_EMAIL = "Email In Use",
+    COUNTRY = "Country Mismatch",
+}
+
+export interface Obstruction<Params extends { [k: string]: unknown } = { [k: string]: unknown }> {
+    code: string;
+    text: string;
+    params?: Params;
+}
+
 export interface ClientOptions {
     // The maximum age for the server time cache
     maxTimecacheAgeMs: number;
@@ -91,12 +103,123 @@ export class TokensoftSDK {
      */
 
     /**
+     * Idempotently register a user with the given email and wallet. Returns obstructions if there
+     * are any data mismatches or other issues with registering the user. Otherwise, returns the
+     * user's saleStatusId, which can be considered the user's unique ID for the given token.
+     */
+    async registerUserWithWallet(
+        addr: string,
+        email: string,
+        name: string,
+        country: string
+    ): Promise<
+        | { success: true; saleStatusId: string }
+        | { success: false; obstructions: Array<Obstruction> }
+    > {
+        const obstructions: Array<Obstruction> = [];
+        let round: { id: string; tokenContract: string; } | null = null;
+
+        // Get round so we can do the rest of what we need to do
+        const rounds = await this.getRounds();
+        if (rounds.length === 0) {
+            throw new Error(`Tokensoft: No rounds returned. Can't register new user.`);
+        }
+        round = rounds[0]!;
+
+        // Now, just try to register
+        obstructions.push(...(await this.addNewParticipant(addr, email, name, country)));
+
+        // If there were no obstructions, we just get the saleStatusId and return success
+        if (obstructions.length === 0) {
+            const saleStatus = await this.findSaleStatusFromUserEmail(email, round.id);
+            if (saleStatus) {
+                return {
+                    success: true,
+                    saleStatusId: saleStatus.id
+                }
+            } else {
+                throw new Error(
+                    `Unknown error: User appears to have been successfully regsitered, but was ` +
+                    `not returned from findSaleStatusFromUserEmail query.`
+                );
+            }
+        }
+
+        // Otherwise, we've gotta go through and compare data
+        const [ saleStatus, user ] = await Promise.all([
+            this.findSaleStatusFromUserEmail(email, round.id),
+            this.getUserByEmail(email),
+        ]);
+
+        // We should have both saleStatus and user by now
+        if (!saleStatus || !user) {
+            throw new Error(
+                `Unknown error: User appears to be registered, but can't find user data by email.`
+            );
+        }
+
+        // Now compare country
+        if (country !== user.address.country) {
+            obstructions.push({
+                code: ErrorCodes.COUNTRY,
+                text: "User country doesn't match existing records",
+                params: {
+                    existing: user.address.country,
+                    incoming: country
+                }
+            });
+        }
+
+        // If we've got obstructions, return them
+        if (obstructions.length > 0) {
+            return {
+                success: false,
+                obstructions,
+            }
+        }
+
+        // At this point, we believe the core user record is ok. Now we'll check the eth address.
+        const accounts = await this.getAccounts(saleStatus.id, round.tokenContract);
+        if (!accounts.find(a => a.address === addr)) {
+            // The incoming account is not among the user's existing accounts. Try to add it.
+            try {
+                await this.addAccount({
+                    address: addr,
+                    saleStatusId: saleStatus.id,
+                    chain: GraphQL.CHAINS.ETHEREUM,
+                    type: GraphQL.RECEIVE_ADDRESS_TYPE.ETHEREUM,
+                });
+            } catch (e) {
+                // TODO: Look for duplicate account error here
+                throw e;
+            }
+        }
+
+        // If no obstructions, the whol operation was a success. Otherwise, fail
+        if (obstructions.length === 0) {
+            return {
+                success: true,
+                saleStatusId: saleStatus.id,
+            }
+        } else {
+            return {
+                success: false,
+                obstructions,
+            }
+        }
+    }
+
+    /**
      *
      *
      *
      *
      * Low-level API Passthrough Functions
      *
+     * TODO: Most of these methods return very small, fixed sets of fields, even though the API can
+     * accommodate more fleshed out fieldsets. We need to find a way to allow the end-user to
+     * define the fields while still maintaining type safety (see the `graphql` branch for current
+     * work on this).
      *
      *
      *
@@ -174,8 +297,8 @@ export class TokensoftSDK {
                     sortDir: "${sortDir}",
                     sortByColumn: "${sortByColumn}"
                 ) {
-			        totalUsers
-                    users {		   
+                    totalUsers
+                    users {           
                         id  
                         acceptedTerms
                         paymentCompleted
@@ -221,6 +344,287 @@ export class TokensoftSDK {
         }>(body);
         const data = this.throwErrors(res);
         return data.adminParticipantUsers;
+    }
+
+    /**
+     * Get the user object associated with the given ID
+     */
+    async getUserById(id: string) {
+        const body = JSON.stringify({
+            query: `query ($id: String!) {
+                user (id: $id) {
+                    id,
+                    email,
+                    role,
+                    kycStatus,
+                    address {
+                        firstName,
+                        middleName,
+                        lastName,
+                        streetLineOne,
+                        streetLineTwo,
+                        city,
+                        state,
+                        zipCode,
+                        country,
+                    }
+                }
+            }`,
+            variables: { id }
+        });
+
+        const res = await this.sendRequest<{
+            user:
+                & Pick<GraphQL.User, "id" | "email" | "role" | "kycStatus">
+                & {
+                    address: Pick<
+                        GraphQL.Address,
+                        | "firstName"
+                        | "middleName"
+                        | "lastName"
+                        | "streetLineOne"
+                        | "streetLineTwo"
+                        | "city"
+                        | "state"
+                        | "zipCode"
+                        | "country"
+                    >
+                }
+        }>(body);
+
+        return this.throwErrors(res).user;
+    }
+
+    /**
+     * Get a user record for a given email
+     */
+    async getUserByEmail(email: string) {
+        const body = JSON.stringify({
+            query: `query ($email: String!) {
+                user (email: $email) {
+                    id,
+                    email,
+                    role,
+                    kycStatus,
+                    address {
+                        firstName,
+                        middleName,
+                        lastName,
+                        streetLineOne,
+                        streetLineTwo,
+                        city,
+                        state,
+                        zipCode,
+                        country,
+                    }
+                }
+            }`,
+            variables: { email }
+        });
+
+        const res = await this.sendRequest<{
+            user:
+                & Pick<GraphQL.User, "id" | "email" | "role" | "kycStatus">
+                & {
+                    address: Pick<
+                        GraphQL.Address,
+                        | "firstName"
+                        | "middleName"
+                        | "lastName"
+                        | "streetLineOne"
+                        | "streetLineTwo"
+                        | "city"
+                        | "state"
+                        | "zipCode"
+                        | "country"
+                    >
+                }
+        }>(body);
+
+        return this.throwErrors(res).user;
+    }
+
+
+    /**
+     * Attempts to register the given investor. If there are certain known errors, the function
+     * returns them as an array of obstructions. Unrecognized errors are thrown as application
+     * errors. An empty array indicates success.
+     */
+    async addNewParticipant(
+        addr: string,
+        email: string,
+        name: string,
+        country: string
+    ): Promise<Array<Obstruction>> {
+        // Prepare
+        const body = JSON.stringify({
+            query: `mutation addNewParticipant(
+                \$addr: String!,
+                \$email:String!,
+                \$name:String!,
+                \$country:String!
+            ) { addNewParticipant(address:$addr, email:$email,name:$name,country:$country) }`,
+            variables: { addr, email, name, country }
+        });
+
+        // Perform the action
+        const res = await this.sendRequest<{ addNewParticipant: boolean }>(body);
+
+        // Collect any errors that we received from the operations
+        const obstructions: Array<Obstruction> = [];
+        if (res.errors) {
+            for (const e of res.errors) {
+                if (e.message.toLowerCase().match("user already in db")) {
+                    obstructions.push({ code: ErrorCodes.DUP_EMAIL, text: e.message });
+                } else if (e.message.toLowerCase().match("participant exists for address")) {
+                    obstructions.push({ code: ErrorCodes.DUP_ADDR, text: e.message });
+                } else {
+                    throw new Error(`Unknown error registering user: ${e.name}: ${e.message}`);
+                }
+            }
+        }
+
+        // Return
+        return obstructions;
+    }
+
+    /**
+     * Get all rounds/tranches for the given security
+     */
+    async getRounds(): Promise<Array<Pick<GraphQL.Round, "id" | "tokenContract">>> {
+        const body = JSON.stringify({ query: `query { getRounds { id, tokenContract } }` });
+        const res = await this.sendRequest<{
+            getRounds: Array<Pick<GraphQL.Round, "id" | "tokenContract">>;
+        }>(body);
+        return this.throwErrors(res).getRounds;
+    }
+
+    /**
+     * Get a user's Sale Status object by their email
+     */
+    async findSaleStatusFromUserEmail(
+        email: string,
+        roundId: string
+    ): Promise<Pick<GraphQL.SaleStatus, "id" | "userId">> {
+        const body = JSON.stringify({
+            query: `query(\$email:String!, \$roundId:String!) {
+                findSaleStatusFromUserEmail(email:\$email, roundId:\$roundId) {
+                    id,
+                    userId
+                }
+            }`,
+            variables: { email, roundId }
+        });
+
+        const res = await this.sendRequest<{
+            findSaleStatusFromUserEmail: Pick<GraphQL.SaleStatus, "id" | "userId">;
+        }>(body);
+
+        return this.throwErrors(res).findSaleStatusFromUserEmail;
+    }
+
+    /**
+     * Get a user by their ETH address
+     */
+    async findUserByEthAddress(addr: string) {
+        const body = JSON.stringify({
+            query: `query($addr:String!) {
+                findUserByEthAddress(address:$addr) {
+                    id,
+                    email,
+                    address {
+                        firstName,
+                        middleName,
+                        lastName,
+                        streetLineOne,
+                        streetLineTwo,
+                        city,
+                        state,
+                        zipCode,
+                        country,
+                    }
+                }
+            }`,
+            variables: { addr }
+        });
+
+        const res = await this.sendRequest<{
+            findUserByEthAddress:
+                & Pick<GraphQL.User, "id" | "email">
+                & {
+                    address: Pick<
+                        GraphQL.Address,
+                        | "firstName"
+                        | "middleName"
+                        | "lastName"
+                        | "streetLineOne"
+                        | "streetLineTwo"
+                        | "city"
+                        | "state"
+                        | "zipCode"
+                        | "country"
+                    >
+                }
+        }>(body);
+
+        return this.throwErrors(res).findUserByEthAddress;
+    }
+
+    /**
+     * Get a user's token accounts (Ethereum addresses)
+     */
+    async getAccounts(
+        saleStatusId: string,
+        tokenContractId: string
+    ) {
+        const body = JSON.stringify({
+            query: `query($saleStatusId:String!,$tokenContractId:String!) {
+                getAccounts(saleStatusId:$saleStatusId,tokenContractId:$tokenContractId) {
+                    id,
+                    primary,
+                    enabled,
+                    name,
+                    balance,
+                    whitelist,
+                    chain,
+                    type,
+                    address,
+                }
+            }`,
+            variables: { saleStatusId, tokenContractId }
+        });
+
+        const res = await this.sendRequest<{
+            getAccounts: Array<Pick<
+                GraphQL.Account,
+                | "id"
+                | "primary"
+                | "enabled"
+                | "name"
+                | "balance"
+                | "whitelist"
+                | "chain"
+                | "type"
+                | "address"
+            >>
+        }>(body);
+
+        return this.throwErrors(res).getAccounts;
+    }
+
+    /**
+     * Add an Ethereum address to a user's Tokensoft account
+     */
+    async addAccount(account: GraphQL.AccountInputType): Promise<string> {
+        const body = JSON.stringify({
+            query: `mutation ($account:AccountInputType!) {
+                addAccount(account:$account) { id }
+            }`,
+            variables: { account }
+        });
+
+        const res = await this.sendRequest<{ addAccount: Pick<GraphQL.Account, "id"> }>(body);
+        return this.throwErrors(res).addAccount.id;
     }
 
     /**
@@ -349,14 +753,19 @@ export class TokensoftSDK {
     }
 
     /**
-     * Take a raw GraphQL response and throw it if it lacks data _and_ has errors.
+     * Take a raw GraphQL response and throw if it lacks data _and_ has errors.
      * **NOTE:** This will NOT throw errors if the errors co-exist with valid data. In that case,
-     * the errors are considered warnings and are not fatal.
+     * the errors are considered warnings and are not fatal. Additionally, it will throw if _any_
+     * of the queries return null.
      */
     protected throwErrors<Data extends { [func: string]: unknown }, ErrorTypes = unknown>(
         res: GraphQL.Response<Data,ErrorTypes>
-    ): NonNullable<Data> {
-        if (!res.data && res.errors && res.errors.length) {
+    ): Data {
+        if (
+            (!res.data || Object.values(res.data).find(v => v === null) !== undefined) &&
+            res.errors &&
+            res.errors.length
+        ) {
             throw new Error(
                 `Errors: ` +
                 res.errors.map(
@@ -364,7 +773,9 @@ export class TokensoftSDK {
                 ).join("; ")
             );
         }
-        return res.data!
+
+        // We've cleared all possibility of null values above, so can cast this
+        return <Data>res.data;
     }
 }
 
