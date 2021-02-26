@@ -4,7 +4,7 @@ import * as Eth from "./Eth";
 import { ERC1404 } from "./ERC1404";
 import * as GraphQL from "./GraphQL";
 
-export { ERC1404, Eth };
+export { ERC1404, Eth, GraphQL };
 
 export interface KYCInfoInput {
     firstName: string
@@ -106,137 +106,6 @@ export class TokensoftSDK {
                 ? (opts || {})
                 : (web3OrOpts || {})
             )
-        }
-    }
-
-    /**
-     *
-     *
-     *
-     *
-     * Higher-level flow functions
-     *
-     * Functions in this section represent more or less complete flows that are common in
-     * interactions between Tokensoft and its partners. These include things like idempotent
-     * user registration and whitelisting, and attempted token transfers.
-     *
-     *
-     *
-     *
-     */
-
-    /**
-     * Idempotently register an investor with the given email and wallet. Returns obstructions if
-     * there are any data mismatches or other issues with registering the investor. Otherwise,
-     * returns the investor's saleStatusId, which can be considered the their unique ID for the
-     * given token.
-     */
-    async registerInvestorWithWallet(
-        investor: Investor
-    ): Promise<
-        | { success: true; saleStatusId: string }
-        | {
-            success: false;
-            obstructions: Array<DuplicateObstruction | Obstruction>
-        }
-    > {
-        const obstructions: Array<DuplicateObstruction | Obstruction> = [];
-
-        // Get round so we can do the rest of what we need to do
-        const rounds = await this.getRounds();
-        if (rounds.length === 0) {
-            throw new Error(`Tokensoft: No rounds returned. Can't register new user.`);
-        }
-        const round = rounds[0]!;
-
-        // See if we can get the user record
-        let user = await this.getUserByEmail(investor.email);
-
-        // If we didn't get a user, try to register
-        if (!user) {
-            // Now try to register
-            const regObstructions = await this.addNewParticipant(
-                investor.walletAddress,
-                investor.email,
-                investor.name,
-                investor.country
-            );
-
-            // If there were no registration obstructions, just get the saleStatusId and return success
-            if (regObstructions.length === 0) {
-                const saleStatus = await this.findSaleStatusFromUserEmail(investor.email, round.id);
-                if (saleStatus) {
-                    return {
-                        success: true,
-                        saleStatusId: saleStatus.id
-                    }
-                } else {
-                    throw new Error(
-                        `Unknown error: User appears to have been successfully regsitered, but was ` +
-                        `not returned from findSaleStatusFromUserEmail query.`
-                    );
-                }
-            }
-
-            // If the error wasn't specifically an "address in use" error, then return failure
-            // (This will probably never happen)
-            if (!regObstructions.find(o => o.code === ErrorCodes.DUP_ADDR)) {
-                return {
-                    success: false,
-                    obstructions: regObstructions,
-                }
-            }
-
-            // If it was an "address in use" error, set user to the one associated with the
-            // address and resume normal flow
-            user = await this.findUserByEthAddress(investor.walletAddress);
-            if (!user) {
-                throw new Error(
-                    `Unknown error: Eth address is conflicting with an existing user, but no user ` +
-                    `is returned when calling findUserByEthAddress.`
-                );
-            }
-        }
-
-        // If we retrieved a user, then we'll have to see if the match between the incoming and
-        // existing records are sufficiently close to be acceptable
-
-        // Generate name string from parts of existing investor
-        const existingUserName = [
-            user.address.firstName,
-            user.address.middleName,
-            user.address.lastName
-        ].filter(n => !!n).join(" ");
-        obstructions.push(...this.diffInvestors(
-            investor,
-            { name: existingUserName, country: user.address.country }
-        ));
-
-        // If there were no obstructions, then we believe this to be the same user
-        if (obstructions.length === 0) {
-            // Get sale status by user email
-            const saleStatus = await this.findSaleStatusFromUserEmail(
-                user.email,
-                round.id
-            );
-
-            if (saleStatus) {
-                return {
-                    success: true,
-                    saleStatusId: saleStatus.id,
-                }
-            } else {
-                throw new Error(
-                    `Unknown Error: Tried to get sale status for existing user with email ` +
-                    `${user.email}, but came up empty.`
-                );
-            }
-        } else {
-            // Otherwise, return the obstructions
-            return {
-                success: false,
-                obstructions,
-            }
         }
     }
 
@@ -809,41 +678,6 @@ export class TokensoftSDK {
 
         // We've cleared all possibility of null values above, so can cast this
         return <Data>res.data;
-    }
-
-    protected diffInvestors(
-        incoming: { name: string; country: string },
-        existing: { name: string; country: string },
-    ): Array<DuplicateObstruction> {
-        const obstructions: Array<DuplicateObstruction> = [];
-
-        // Check name
-        if (incoming.name !== existing.name) {
-            obstructions.push({
-                code: "Legal Name Mismatch",
-                text: `Registrar legal name: ${existing.name}; Incoming legal name: ${incoming.name}`,
-                params: {
-                    type: "duplicate",
-                    incoming: incoming.name,
-                    existing: existing.name,
-                }
-            });
-        }
-
-        // Check country
-        if (incoming.country !== existing.country) {
-            obstructions.push({
-                code: "Country Mismatch",
-                text: `Registrar country: ${existing.country}; Incoming country: ${incoming.country}`,
-                params: {
-                    type: "duplicate",
-                    incoming: incoming.country,
-                    existing: existing.country,
-                }
-            });
-        }
-
-        return obstructions;
     }
 }
 
