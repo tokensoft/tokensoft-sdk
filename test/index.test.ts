@@ -22,7 +22,15 @@ describe('Base Unit Tests', () => {
       "currentUser",
       "authorizeUser",
       "AdminParticipantUsers",
-      "detectTransferRestriction"
+      "getUserById",
+      "getUserByEmail",
+      "addNewParticipant",
+      "getRounds",
+      "findSaleStatusFromUserEmail",
+      "findUserByEthAddress",
+      "getAccounts",
+      "addAccount",
+      "detectTransferRestriction",
     ];
 
     clientPublicMethods.forEach(method => {
