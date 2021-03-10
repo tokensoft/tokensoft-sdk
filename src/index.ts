@@ -116,10 +116,6 @@ export class TokensoftSDK {
      *
      * Low-level API Passthrough Functions
      *
-     * TODO: Most of these methods return very small, fixed sets of fields, even though the API can
-     * accommodate more fleshed out fieldsets. We need to find a way to allow the end-user to
-     * define the fields while still maintaining type safety (see the `graphql` branch for current
-     * work on this).
      *
      *
      *
@@ -249,98 +245,36 @@ export class TokensoftSDK {
     /**
      * Get the user object associated with the given ID
      */
-    async getUserById(id: string) {
+    async getUserById<P extends GraphQL.Projection<GraphQL.User>>(
+        id: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P> | null> {
         const body = JSON.stringify({
             query: `query ($id: String!) {
-                user (id: $id) {
-                    id,
-                    email,
-                    role,
-                    kycStatus,
-                    address {
-                        firstName,
-                        middleName,
-                        lastName,
-                        streetLineOne,
-                        streetLineTwo,
-                        city,
-                        state,
-                        zipCode,
-                        country,
-                    }
-                }
+                user (id: $id) ${this.constructProjection(p)}
             }`,
             variables: { id }
         });
 
-        const res = await this.sendRequest<{
-            user:
-                & Pick<GraphQL.User, "id" | "email" | "role" | "kycStatus">
-                & {
-                    address: Pick<
-                        GraphQL.Address,
-                        | "firstName"
-                        | "middleName"
-                        | "lastName"
-                        | "streetLineOne"
-                        | "streetLineTwo"
-                        | "city"
-                        | "state"
-                        | "zipCode"
-                        | "country"
-                    >
-                }
-        }>(body);
-
+        const res = await this.sendRequest<{ user: GraphQL.Result<GraphQL.User, P> | null }>(body);
         return this.throwErrors(res).user;
     }
 
     /**
      * Get a user record for a given email
      */
-    async getUserByEmail(email: string) {
+    async getUserByEmail<P extends GraphQL.Projection<GraphQL.User>>(
+        email: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P> | null> {
         const body = JSON.stringify({
             query: `query ($email: String!) {
-                user (email: $email) {
-                    id,
-                    email,
-                    role,
-                    kycStatus,
-                    address {
-                        firstName,
-                        middleName,
-                        lastName,
-                        streetLineOne,
-                        streetLineTwo,
-                        city,
-                        state,
-                        zipCode,
-                        country,
-                    }
-                }
+                user (email: $email) ${this.constructProjection(p)}
             }`,
             variables: { email }
         });
 
-        const res = await this.sendRequest<{
-            user:
-                & Pick<GraphQL.User, "id" | "email" | "role" | "kycStatus">
-                & {
-                    address: Pick<
-                        GraphQL.Address,
-                        | "firstName"
-                        | "middleName"
-                        | "lastName"
-                        | "streetLineOne"
-                        | "streetLineTwo"
-                        | "city"
-                        | "state"
-                        | "zipCode"
-                        | "country"
-                    >
-                }
-        }>(body);
-
+        const res = await this.sendRequest<{ user: GraphQL.Result<GraphQL.User, P> | null }>(body);
         return this.throwErrors(res).user;
     }
 
@@ -391,10 +325,12 @@ export class TokensoftSDK {
     /**
      * Get all rounds/tranches for the given security
      */
-    async getRounds(): Promise<Array<Pick<GraphQL.Round, "id" | "tokenContract">>> {
-        const body = JSON.stringify({ query: `query { getRounds { id, tokenContract } }` });
+    async getRounds<P extends GraphQL.Projection<GraphQL.Round>>(
+        p: P
+    ): Promise<Array<GraphQL.Result<GraphQL.Round, P>>> {
+        const body = JSON.stringify({ query: `query { getRounds ${this.constructProjection(p)} }` });
         const res = await this.sendRequest<{
-            getRounds: Array<Pick<GraphQL.Round, "id" | "tokenContract">>;
+            getRounds: Array<GraphQL.Result<GraphQL.Round, P>>;
         }>(body);
         return this.throwErrors(res).getRounds;
     }
@@ -402,113 +338,63 @@ export class TokensoftSDK {
     /**
      * Get a user's Sale Status object by their email
      */
-    async findSaleStatusFromUserEmail(
+    async findSaleStatusFromUserEmail<P extends GraphQL.Projection<GraphQL.Round>>(
         email: string,
-        roundId: string
-    ): Promise<Pick<GraphQL.SaleStatus, "id" | "userId">> {
+        roundId: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.SaleStatus, P> | null> {
         const body = JSON.stringify({
             query: `query(\$email:String!, \$roundId:String!) {
-                findSaleStatusFromUserEmail(email:\$email, roundId:\$roundId) {
-                    id,
-                    userId
-                }
+                findSaleStatusFromUserEmail(email:\$email, roundId:\$roundId)
+                ${this.constructProjection(p)}
             }`,
             variables: { email, roundId }
         });
 
         const res = await this.sendRequest<{
-            findSaleStatusFromUserEmail: Pick<GraphQL.SaleStatus, "id" | "userId">;
+            findSaleStatusFromUserEmail: GraphQL.Result<GraphQL.SaleStatus, P> | null;
         }>(body);
-
         return this.throwErrors(res).findSaleStatusFromUserEmail;
     }
 
     /**
      * Get a user by their ETH address
      */
-    async findUserByEthAddress(addr: string) {
+    async findUserByEthAddress<P extends GraphQL.Projection<GraphQL.User>>(
+        addr: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P> | null> {
         const body = JSON.stringify({
             query: `query($addr:String!) {
-                findUserByEthAddress(address:$addr) {
-                    id,
-                    email,
-                    role,
-                    kycStatus,
-                    address {
-                        firstName,
-                        middleName,
-                        lastName,
-                        streetLineOne,
-                        streetLineTwo,
-                        city,
-                        state,
-                        zipCode,
-                        country,
-                    }
-                }
+                findUserByEthAddress(address:$addr) ${this.constructProjection(p)}
             }`,
             variables: { addr }
         });
 
         const res = await this.sendRequest<{
-            findUserByEthAddress:
-                & Pick<GraphQL.User, "id" | "email" | "role" | "kycStatus">
-                & {
-                    address: Pick<
-                        GraphQL.Address,
-                        | "firstName"
-                        | "middleName"
-                        | "lastName"
-                        | "streetLineOne"
-                        | "streetLineTwo"
-                        | "city"
-                        | "state"
-                        | "zipCode"
-                        | "country"
-                    >
-                }
+            findUserByEthAddress: GraphQL.Result<GraphQL.User, P> | null
         }>(body);
-
         return this.throwErrors(res).findUserByEthAddress;
     }
 
     /**
      * Get a user's token accounts (Ethereum addresses)
      */
-    async getAccounts(
+    async getAccounts<P extends GraphQL.Projection<GraphQL.Account>>(
         saleStatusId: string,
-        tokenContractId: string
-    ) {
+        tokenContractId: string,
+        p: P
+    ): Promise<Array<GraphQL.Result<GraphQL.Account, P>>> {
         const body = JSON.stringify({
             query: `query($saleStatusId:String!,$tokenContractId:String!) {
-                getAccounts(saleStatusId:$saleStatusId,tokenContractId:$tokenContractId) {
-                    id,
-                    primary,
-                    enabled,
-                    name,
-                    balance,
-                    whitelist,
-                    chain,
-                    type,
-                    address,
-                }
+                getAccounts(saleStatusId:$saleStatusId,tokenContractId:$tokenContractId)
+                ${this.constructProjection(p)}
             }`,
             variables: { saleStatusId, tokenContractId }
         });
 
         const res = await this.sendRequest<{
-            getAccounts: Array<Pick<
-                GraphQL.Account,
-                | "id"
-                | "primary"
-                | "enabled"
-                | "name"
-                | "balance"
-                | "whitelist"
-                | "chain"
-                | "type"
-                | "address"
-            >>
+            getAccounts: Array<GraphQL.Result<GraphQL.Account, P>>
         }>(body);
 
         return this.throwErrors(res).getAccounts;
@@ -658,7 +544,7 @@ export class TokensoftSDK {
      * Take a raw GraphQL response and throw if it lacks data _and_ has errors.
      * **NOTE:** This will NOT throw errors if the errors co-exist with valid data. In that case,
      * the errors are considered warnings and are not fatal. Additionally, it will throw if _any_
-     * of the queries return null.
+     * of the queries return null and there are errors.
      */
     protected throwErrors<Data extends { [func: string]: unknown }, ErrorTypes = unknown>(
         res: GraphQL.Response<Data,ErrorTypes>
@@ -678,6 +564,30 @@ export class TokensoftSDK {
 
         // We've cleared all possibility of null values above, so can cast this
         return <Data>res.data;
+    }
+
+    /**
+     * Use a `Projection` object to construct a GraphQL string representation of that type.
+     */
+    protected constructProjection(f: GraphQL.Projection<any>): string {
+        const collection: Array<string> = [];
+        for (const k in f) {
+            const val = f[k];
+
+            // Ignore falsy values
+            if (!val) {
+                continue;
+            }
+
+            if (val === true) {
+                // If "true", request this key
+                collection.push(k);
+            } else {
+                // Otherwise, it's an object, so recurse
+                collection.push(`${k} ${this.constructProjection(val)}`);
+            }
+        }
+        return `{ ${collection.join(",")} }`;
     }
 }
 

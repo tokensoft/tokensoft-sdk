@@ -17,6 +17,109 @@ export type ApiError<T = unknown> = {
 }
 
 /**
+ * The following two types define GraphQL projecctions and results.
+ *
+ * The `Projection` type is a type describing a _projection_ of a full type for the purposes of
+ * GraphQL. Note that GraphQL projections ignore arrays, so this type strips out arrays. The goal
+ * is to be able to pass in a Projection object that can be used to programmatically generate a
+ * GraphQL type string and then subsequently to generate a matching return type definition.
+ *
+ * The `Result` type describes a concrete result based on the given projection object.
+ *
+ * For example:
+ *
+ * // Define a base type
+ * type User = {
+ *   id: string;
+ *   email: string;
+ *   approved: string;
+ *   address: {
+ *     street1: string;
+ *     city: string;
+ *     state: string;
+ *     country: {
+ *       code: string;
+ *       allowed: boolean;
+ *     }
+ *   };
+ *   docs: Array<{
+ *     id: string;
+ *     url: string;
+ *     approved: boolean;
+ *   }>
+ * }
+ * 
+ * // Define a function that accepts a projection of a specific type and returns a result based
+ * // on that projection
+ * const testUser = <T extends Projection<User>>(p: T): Result<User, T> => {
+ *   const result: any = {
+ *       email: "me@us.com",
+ *       address: {
+ *           country: {
+ *               code: "US"
+ *           }
+ *       },
+ *       docs: [
+ *           {
+ *               id: "1",
+ *               url: "https://abcde.com/docs/1"
+ *           },
+ *           {
+ *               id: "2",
+ *               url: "https://abcde.com/docs/2"
+ *           }
+ *       ]
+ *   }
+ *   return result;
+ * }
+ * 
+ * // Use the function with a given projection to get a result
+ * const res = testUser({
+ *   id: false,
+ *   email: true,
+ *   address: {
+ *     country: {
+ *       code: true
+ *     }
+ *   },
+ *   docs: {
+ *     id: true,
+ *     url: true
+ *   }
+ * });
+ * 
+ * // Use the result
+ * console.log(res.id);                   // << Type: never
+ * console.log(res.email);                // << Type: string
+ * console.log(res.docs.length);          // << Value: 2
+ * console.log(res.docs[0]!.id);          // << Type: string
+ * console.log(res.address.country.code); // << Type: string
+ *
+ */
+
+export type Projection<T> = {
+  [K in keyof T]?:
+    T[K] extends Array<infer U>
+      ? Projection<U>
+      : T[K] extends null | string | number | boolean | undefined
+        ? boolean
+        : Projection<T[K]>;
+}
+
+export type Result<T, P> = P extends Projection<T>
+  ? {
+    [K in (keyof P & keyof T)]:
+      P[K] extends undefined | false
+        ? undefined
+        : P[K] extends true
+          ? T[K]
+          : T[K] extends Array<infer U>
+            ? Array<Result<U, P[K]>>
+            : Result<T[K], P[K]>
+  }
+  : never;
+
+/**
  * GraphQL responses consist of a possible array of errors and/or a data element with keys
  * representing the functions called and values representing the return value of the given function.
  */
