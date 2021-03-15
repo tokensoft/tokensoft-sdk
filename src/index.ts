@@ -6,6 +6,18 @@ import * as GraphQL from "./GraphQL";
 
 export { ERC1404, Eth, GraphQL };
 
+/**
+ *
+ *
+ *
+ *
+ * Interface types and definitions
+ *
+ *
+ *
+ *
+ */
+
 export interface KYCInfoInput {
     firstName: string
     lastName: string
@@ -60,27 +72,95 @@ export type DuplicateObstruction = Obstruction<{
     existing: string;
 }>;
 
+/**
+ * Since Typescript includes all protected/private variables and functions in it's definition of
+ * public class interfaces, we want to define a separate interface describing only the actual
+ * public functionality.
+ */
+export interface TokensoftInterface {
+    currentUser(): Promise<{ currentUser: { id: string; email: string } }>;
+    authorizeUser(email: string, address: string, kycInfo: KYCInfoInput): Promise<string>;
+    getUserById<P extends GraphQL.Projection<GraphQL.User>>(
+        id: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P> | null>;
+    getUserByEmail<P extends GraphQL.Projection<GraphQL.User>>(
+        email: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P> | null>;
+    addNewParticipant(
+        addr: string,
+        email: string,
+        name: string,
+        country: string
+    ): Promise<Array<Obstruction>>;
+    getRounds<P extends GraphQL.Projection<GraphQL.Round>>(
+        p: P
+    ): Promise<Array<GraphQL.Result<GraphQL.Round, P>>>;
+    findSaleStatusFromUserEmail<P extends GraphQL.Projection<GraphQL.Round>>(
+        email: string,
+        roundId: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.SaleStatus, P> | null>;
+    findUserByEthAddress<P extends GraphQL.Projection<GraphQL.User>>(
+        addr: string,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P> | null>;
+    getAccounts<P extends GraphQL.Projection<GraphQL.Account>>(
+        saleStatusId: string,
+        tokenContractId: string,
+        p: P
+    ): Promise<Array<GraphQL.Result<GraphQL.Account, P>>>;
+    addAccount(account: GraphQL.AccountInputType): Promise<string>;
+    detectTransferRestriction(
+        tx: Transaction
+    ): Promise<Array<{ code: string; text: string; }>>;
+}
+
+/**
+ *
+ *
+ *
+ *
+ * Client types and definitions
+ *
+ *
+ *
+ *
+ */
+
+export type FetchFunction = (
+    url: string,
+    opts: {
+        headers: { [header: string]: string };
+        method: string;
+        body: string;
+    }
+) => Promise<{ json(): Promise<any> }>;
+
 export interface ClientOptions {
     // The maximum age for the server time cache
     maxTimecacheAgeMs: number;
+    // An optional web3 dependency. If not provided, client will throw errors when attempting to
+    // use web3.
+    web3?: Eth.Web3Interface;
+    // An optional fetch dependency. If not provided, the default `node-fetch` will be used.
+    fetch: FetchFunction;
 }
 
-export class TokensoftSDK {
+export class TokensoftSDK implements TokensoftInterface {
     private timecache: { serverMs: number, localMs: number } | null = null;
     private opts: ClientOptions;
     private keyId: string
     private secretKey: string
     private apiUrl: string
-    private web3: Eth.Web3Interface | null;
 
-    constructor(apiUrl: string, keyId: string, secretKey: string, web3: Eth.Web3Interface, opts?: Partial<ClientOptions>);
     constructor(apiUrl: string, keyId: string, secretKey: string, opts: Partial<ClientOptions>);
     constructor(apiUrl: string, keyId: string, secretKey: string);
     constructor(
         apiUrl: string,
         keyId: string,
         secretKey: string,
-        web3OrOpts?: Eth.Web3Interface | Partial<ClientOptions>,
         opts?: Partial<ClientOptions>
     ) {
         this.apiUrl = apiUrl
@@ -98,14 +178,10 @@ export class TokensoftSDK {
             throw new Error('missing secretKey argument')
         }
 
-        this.web3 = isWeb3(web3OrOpts) ? web3OrOpts : null;
         this.opts = {
             maxTimecacheAgeMs: 1200000, // 20 minutes
-            ...(
-                isWeb3(web3OrOpts)
-                ? (opts || {})
-                : (web3OrOpts || {})
-            )
+            fetch: (opts && opts.fetch) || fetch,
+            ...(opts || {}),
         }
     }
 
@@ -436,7 +512,7 @@ export class TokensoftSDK {
     ): Promise<Array<{ code: string; text: string; }>> {
         // The Ethereum provider is optional, so we need to check for that first and throw if we
         // don't have it
-        if (!this.web3) {
+        if (!this.opts.web3) {
             throw new Error(
                 `Programmer: No Ethereum client provided, so can't access Ethereum. Fix this by ` +
                 `providing an Ethereum provider (e.g., web3 instance) on instantiation.`
@@ -445,7 +521,7 @@ export class TokensoftSDK {
 
         // If we've got an ethereum provider, we'll use the tx data to see if the transaction can
         // go through
-        const token = new this.web3.eth.Contract(ERC1404.abi, tx.tokenAddress);
+        const token = new this.opts.web3.eth.Contract(ERC1404.abi, tx.tokenAddress);
 
         const code = await token.methods.detectTransferRestriction(
             tx.fromWallet,
@@ -494,7 +570,7 @@ export class TokensoftSDK {
         }
 
         try {
-            const res = await fetch(this.apiUrl, options)
+            const res = await this.opts.fetch(this.apiUrl, options)
             return await res.json()
         } catch (e) {
             console.log('Error sending request to TokensoftApi: ', e)
@@ -524,7 +600,7 @@ export class TokensoftSDK {
             }
 
             // Fetch time from server
-            const res = await fetch(this.apiUrl, options)
+            const res = await this.opts.fetch(this.apiUrl, options)
             const { data } = await res.json()
 
             // Use time from server to construct time cache
@@ -591,6 +667,3 @@ export class TokensoftSDK {
     }
 }
 
-const isWeb3 = (thing: any): thing is Eth.Web3Interface => {
-    return thing !== undefined &&  thing.eth !== undefined;
-}

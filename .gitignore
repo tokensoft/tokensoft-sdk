@@ -4,3 +4,6 @@ build
 *.log
 .idea
 *.sw[op]
+
+# Using yarn instead of npm, so ignore package-lock.json
+package-lock.json

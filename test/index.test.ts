@@ -43,7 +43,7 @@ describe('Base Unit Tests', () => {
   describe('`detectTransferRestriction` method', () => {
     let client: TokensoftSDK;
     beforeEach(() => {
-      client = new TokensoftSDK('https://example.com', 'key', 'secret', new FakeWeb3());
+      client = new TokensoftSDK('https://example.com', 'key', 'secret', { web3: new FakeWeb3() });
     });
 
     // Reset FakeContract values after each test
