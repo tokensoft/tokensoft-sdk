@@ -132,9 +132,9 @@ export interface TokensoftInterface {
 export type FetchFunction = (
     url: string,
     opts: {
-        headers: { [header: string]: string };
-        method: string;
-        body: string;
+        headers?: { [header: string]: string };
+        method?: string;
+        body?: string;
     }
 ) => Promise<{ json(): Promise<any> }>;
 
