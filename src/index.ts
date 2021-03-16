@@ -73,45 +73,156 @@ export type DuplicateObstruction = Obstruction<{
 }>;
 
 /**
+ * Webhook types
+ *
+ * These types are not used in this library directly, but represent the data type returned in
+ * webhooks originating from the `whitelistAccount` call.
+ */
+export type WebhookPayload = {
+    tokenContractId: string;
+    accountId: string;
+    transactionHash: string;
+}
+
+export type WebhookSuccessResponse = {
+    status: "success";
+    payload: WebhookPayload;
+}
+
+export type WebhookNotSuccessResponse = {
+    status: "failure" | "delayed";
+    payload: WebhookPayload & {
+        reason: string
+    };
+}
+
+export type WebhookResponse = WebhookSuccessResponse | WebhookNotSuccessResponse;
+
+/**
  * Since Typescript includes all protected/private variables and functions in it's definition of
  * public class interfaces, we want to define a separate interface describing only the actual
  * public functionality.
+ *
+ * Note that many methods have a `p` parameter. This parameter is a "projection" of the given
+ * return type and mirrors a GraphQL projection.
  */
 export interface TokensoftInterface {
+    /**
+     * Get the user corresponding to the current credentials
+     */
     currentUser(): Promise<{ currentUser: { id: string; email: string } }>;
-    authorizeUser(email: string, address: string, kycInfo: KYCInfoInput): Promise<string>;
+
+    /**
+     * Get a user by user id
+     */
     getUserById<P extends GraphQL.Projection<GraphQL.User>>(
         id: string,
         p: P
     ): Promise<GraphQL.Result<GraphQL.User, P> | null>;
+
+    /**
+     * Get a user by email
+     */
     getUserByEmail<P extends GraphQL.Projection<GraphQL.User>>(
         email: string,
         p: P
     ): Promise<GraphQL.Result<GraphQL.User, P> | null>;
-    addNewParticipant(
-        addr: string,
+
+    /**
+     * Create a user record without whitelisting. This gives the user a user ID in the Tokensoft
+     * system, but does not whitelist the user for trading.
+     */
+    createUnregisteredUser<P extends GraphQL.Projection<GraphQL.User>>(
         email: string,
-        name: string,
-        country: string
-    ): Promise<Array<Obstruction>>;
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P>>;
+
+    /**
+     * Update KYC data for the given user
+     */
+    updateUserDetails<P extends GraphQL.Projection<GraphQL.User>>(
+        userId: string,
+        data: GraphQL.Address,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P>>;
+
+    /**
+     * Get all sale rounds for the given token (implied by the API being used)
+     */
     getRounds<P extends GraphQL.Projection<GraphQL.Round>>(
         p: P
     ): Promise<Array<GraphQL.Result<GraphQL.Round, P>>>;
+
+    /**
+     * Get the sale status object of the given user for the given token (implied by the API being
+     * used)
+     */
     findSaleStatusFromUserEmail<P extends GraphQL.Projection<GraphQL.Round>>(
         email: string,
         roundId: string,
         p: P
     ): Promise<GraphQL.Result<GraphQL.SaleStatus, P> | null>;
+
+    /**
+     * Get a user object by the user's ETH address
+     */
     findUserByEthAddress<P extends GraphQL.Projection<GraphQL.User>>(
         addr: string,
         p: P
     ): Promise<GraphQL.Result<GraphQL.User, P> | null>;
+
+    /**
+     * Get all of a user's accounts. This can include Ethereum wallets, among other things, and
+     * is not limited to the accounts used for the given token.
+     */
     getAccounts<P extends GraphQL.Projection<GraphQL.Account>>(
         saleStatusId: string,
         tokenContractId: string,
         p: P
     ): Promise<Array<GraphQL.Result<GraphQL.Account, P>>>;
-    addAccount(account: GraphQL.AccountInputType): Promise<string>;
+
+    /**
+     * Get all of the given user's accounts (this is redundant with `getAccounts`, but doesn't
+     * require the `tokenContractId` field, so may save a round-trip).
+     */
+    getUserAccounts<P extends GraphQL.Projection<GraphQL.Account>>(
+        userId: string,
+        p: P
+    ): Promise<Array<GraphQL.Result<GraphQL.Account, P>>>;
+
+    /**
+     * Add an account for a given user. This will usually be an ETH wallet, but could be any valid
+     * entity that holds tokens.
+     */
+    addAccount<P extends GraphQL.Projection<GraphQL.Account>>(
+        account: GraphQL.AccountInputType,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.Account, P>>;
+
+    /**
+     * Whitelist the given account
+     *
+     * @param accountId: string The id of the account being whitelisted. Note that each wallet
+     * an investor owns and wishes to transact with must be whitelisted separately.
+     * @param tokenContractId: string The Tokensoft id of the token. This will be provided by
+     * Tokensoft for each token and may be stored in configuration or database.
+     * @param webhookUrl?: string An optional webhook URL. A webhook will be sent on status change
+     * with a payload of type `WebhookResponse` (defined above).
+     * @return string The hash of the initial blockchain transaction created to whitelist the
+     * account. Note that there is no guarantee that this transaction will be the one to actually
+     * whitelist the account. The transaction may be mined and dropped, or it may be replaced by
+     * another with a higher gas price. The only way to know that the whitelisting worked is to
+     * receive a webhook via the webhookUrl parameter above.
+     */
+    whitelistAccount(
+        accountId: string,
+        tokenContractId: string,
+        webhookUrl?: string
+    ): Promise<string>;
+
+    /**
+     * See if there are problems that will arise when trying to clear the given transaction
+     */
     detectTransferRestriction(
         tx: Transaction
     ): Promise<Array<{ code: string; text: string; }>>;
@@ -122,7 +233,7 @@ export interface TokensoftInterface {
  *
  *
  *
- * Client types and definitions
+ * Client internal types and definitions
  *
  *
  *
@@ -147,6 +258,18 @@ export interface ClientOptions {
     // An optional fetch dependency. If not provided, the default `node-fetch` will be used.
     fetch: FetchFunction;
 }
+
+/**
+ *
+ *
+ *
+ *
+ * TokensoftSDK Definition
+ *
+ *
+ *
+ *
+ */
 
 export class TokensoftSDK implements TokensoftInterface {
     private timecache: { serverMs: number, localMs: number } | null = null;
@@ -211,38 +334,6 @@ export class TokensoftSDK implements TokensoftInterface {
         const res = await this.sendRequest<{ currentUser: { id: string; email: string } }>(body);
         const data = this.throwErrors(res);
         return data;
-    }
-
-    /**
-     * Authorize an existing Tokensoft account to be able to hold an asset
-     * @param email
-     * @param address
-     */
-    async authorizeUser(email: string, address: string, kycInfo: KYCInfoInput): Promise<string> {
-        const body = JSON.stringify({
-            query: `mutation {
-                whitelistUser(
-                    email: "${email}",
-                    address: "${address}",
-                    kyc: {
-                        firstName: "${kycInfo.firstName}",
-                        lastName: "${kycInfo.lastName}",
-                        address: {
-                          streetAddress: "${kycInfo.address.streetAddress}",
-                          city: "${kycInfo.address.city}",
-                          state: "${kycInfo.address.state}",
-                          zip: "${kycInfo.address.zip}",
-                          country:"${kycInfo.address.country}"
-                        }
-                      }
-                    }
-                )
-            }`
-        })
-
-        const res = await this.sendRequest<{ "whitelistUser": string }>(body);
-        const data = this.throwErrors(res);
-        return data.whitelistUser;
     }
 
     /**
@@ -345,7 +436,7 @@ export class TokensoftSDK implements TokensoftInterface {
     ): Promise<GraphQL.Result<GraphQL.User, P> | null> {
         const body = JSON.stringify({
             query: `query ($email: String!) {
-                user (email: $email) ${this.constructProjection(p)}
+                userEmailLookup(email: $email) ${this.constructProjection(p)}
             }`,
             variables: { email }
         });
@@ -354,48 +445,50 @@ export class TokensoftSDK implements TokensoftInterface {
         return this.throwErrors(res).user;
     }
 
-
     /**
-     * Attempts to register the given investor. If there are certain known errors, the function
-     * returns them as an array of obstructions. Unrecognized errors are thrown as application
-     * errors. An empty array indicates success.
+     * Attempts to register the given investor email. If the email is already registered, throws
+     * an error.
      */
-    async addNewParticipant(
-        addr: string,
+    async createUnregisteredUser<P extends GraphQL.Projection<GraphQL.User>>(
         email: string,
-        name: string,
-        country: string
-    ): Promise<Array<Obstruction>> {
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P>> {
         // Prepare
         const body = JSON.stringify({
-            query: `mutation addNewParticipant(
-                \$addr: String!,
-                \$email:String!,
-                \$name:String!,
-                \$country:String!
-            ) { addNewParticipant(address:$addr, email:$email,name:$name,country:$country) }`,
-            variables: { addr, email, name, country }
+            query: `mutation createUnregisteredUser($email:String!) {
+              createUnregisteredUser(email:$email) ${this.constructProjection(p)}
+            }`,
+            variables: { email }
         });
 
         // Perform the action
-        const res = await this.sendRequest<{ addNewParticipant: boolean }>(body);
+        const res = await this.sendRequest<{
+          createUnregisteredUser: GraphQL.Result<GraphQL.User, P>;
+        }>(body);
+        return this.throwErrors(res).createUnregisteredUser;
+    }
 
-        // Collect any errors that we received from the operations
-        const obstructions: Array<Obstruction> = [];
-        if (res.errors) {
-            for (const e of res.errors) {
-                if (e.message.toLowerCase().match("user already in db")) {
-                    obstructions.push({ code: ErrorCodes.DUP_EMAIL, text: e.message });
-                } else if (e.message.toLowerCase().match("participant exists for address")) {
-                    obstructions.push({ code: ErrorCodes.DUP_ADDR, text: e.message });
-                } else {
-                    throw new Error(`Unknown error registering user: ${e.name}: ${e.message}`);
-                }
-            }
-        }
+    /**
+     * Update KYC data for the given user
+     */
+    async updateUserDetails<P extends GraphQL.Projection<GraphQL.User>>(
+        userId: string,
+        data: GraphQL.Address,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.User, P>> {
+        // Prepare
+        const body = JSON.stringify({
+            query: `mutation updateUserDetails($id:String!, $address:Address!) {
+              updateUserDetails(id: $id, address: $address) ${this.constructProjection(p)}
+            }`,
+            variables: { userId, address: data }
+        });
 
-        // Return
-        return obstructions;
+        // Perform the action
+        const res = await this.sendRequest<{
+          updateUserDetails: GraphQL.Result<GraphQL.User, P>;
+        }>(body);
+        return this.throwErrors(res).updateUserDetails;
     }
 
     /**
@@ -477,18 +570,67 @@ export class TokensoftSDK implements TokensoftInterface {
     }
 
     /**
-     * Add an Ethereum address to a user's Tokensoft account
+     * Get all of the given user's accounts (this is redundant with `getAccounts`, but doesn't
+     * require the `tokenContractId` field, so may save a round-trip).
      */
-    async addAccount(account: GraphQL.AccountInputType): Promise<string> {
+    async getUserAccounts<P extends GraphQL.Projection<GraphQL.Account>>(
+        userId: string,
+        p: P
+    ): Promise<Array<GraphQL.Result<GraphQL.Account, P>>> {
+        const body = JSON.stringify({
+            query: `query($userId:String!) {
+                getUserAccounts(id:$userId) ${this.constructProjection(p)}
+            }`,
+            variables: { userId }
+        });
+
+        const res = await this.sendRequest<{
+            getUserAccounts: Array<GraphQL.Result<GraphQL.Account, P>>
+        }>(body);
+
+        return this.throwErrors(res).getUserAccounts;
+    }
+
+    /**
+     * Add an account for a given user. This will usually be an ETH wallet, but could be any valid
+     * entity that holds tokens.
+     */
+    async addAccount<P extends GraphQL.Projection<GraphQL.Account>>(
+        account: GraphQL.AccountInputType,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.Account, P>> {
         const body = JSON.stringify({
             query: `mutation ($account:AccountInputType!) {
-                addAccount(account:$account) { id }
+                addAccount(account:$account) ${this.constructProjection(p)}
             }`,
             variables: { account }
         });
 
-        const res = await this.sendRequest<{ addAccount: Pick<GraphQL.Account, "id"> }>(body);
-        return this.throwErrors(res).addAccount.id;
+        const res = await this.sendRequest<{ addAccount: GraphQL.Result<GraphQL.Account, P> }>(body);
+        return this.throwErrors(res).addAccount;
+    }
+
+    /**
+     * Whitelist an account (see docs in interface definition above)
+     */
+    async whitelistAccount(
+        accountId: string,
+        tokenContractId: string,
+        webhookUrl?: string
+    ): Promise<string> {
+        const body = JSON.stringify({
+            query: `mutation ($accountId:String!,$tokenContractId:String!,$webhookUrl:String) {
+                whitelistUser(
+                    accountId:$accountId,
+                    tokenContractId:$tokenContractId,
+                    callback:$webhookUrl
+                )
+            }`,
+            variables: { accountId, tokenContractId, webhookUrl }
+        });
+
+        const res = await this.sendRequest<{ whitelistUser: string }>(body);
+        return this.throwErrors(res).whitelistUser;
     }
 
     /**

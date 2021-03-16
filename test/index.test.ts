@@ -20,16 +20,18 @@ describe('Base Unit Tests', () => {
 
     const clientPublicMethods: Array<keyof TokensoftSDK> = [
       "currentUser",
-      "authorizeUser",
       "AdminParticipantUsers",
       "getUserById",
       "getUserByEmail",
-      "addNewParticipant",
+      "createUnregisteredUser",
+      "updateUserDetails",
       "getRounds",
       "findSaleStatusFromUserEmail",
       "findUserByEthAddress",
       "getAccounts",
+      "getUserAccounts",
       "addAccount",
+      "whitelistAccount",
       "detectTransferRestriction",
     ];
 

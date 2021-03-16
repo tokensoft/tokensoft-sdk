@@ -191,35 +191,35 @@ export type KycFile = {
 type Datetime = string;
 
 export type Address = {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    dob: string;
-    flatNumber: string;
-    buildingNumber: string;
-    buildingName: string;
-    streetLineOne: string;
-    streetLineTwo: string;
-    country: string;
-    state: string;
-    city: string;
-    zipCode: string;
-    phoneNumber: string;
-    investorType: string;
-    entityTitle: string;
-    entityName: string;
-    entityCountry: string;
-    entityFlatNumber: string;
-    entityBuildingNumber: string;
-    entityBuildingName: string;
-    entityStreetLineOne: string;
-    entityStreetLineTwo: string;
-    entityCity: string;
-    entityState: string;
-    entityZipCode: string;
-    entityDba: string;
-    entityPhoneNumber: string;
-    additionalKycFields: Array<{ key: string; value: string; description: string; }>;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    dob?: string;
+    flatNumber?: string;
+    buildingNumber?: string;
+    buildingName?: string;
+    streetLineOne?: string;
+    streetLineTwo?: string;
+    country?: string;
+    state?: string;
+    city?: string;
+    zipCode?: string;
+    phoneNumber?: string;
+    investorType?: string;
+    entityTitle?: string;
+    entityName?: string;
+    entityCountry?: string;
+    entityFlatNumber?: string;
+    entityBuildingNumber?: string;
+    entityBuildingName?: string;
+    entityStreetLineOne?: string;
+    entityStreetLineTwo?: string;
+    entityCity?: string;
+    entityState?: string;
+    entityZipCode?: string;
+    entityDba?: string;
+    entityPhoneNumber?: string;
+    additionalKycFields?: Array<{ key: string; value: string; description: string; }>;
 }
 
 export type SaleRound = {
@@ -304,16 +304,19 @@ export type EntityRoles = {
     inviteDate: Datetime;
 }
 
-export type AccountInputType = {
+export type AccountBaseType = {
     address: string;
     name?: string | null;
-    saleStatusId: string;
     chain: CHAINS;
     type: RECEIVE_ADDRESS_TYPE;
     primary?: boolean | null;
 }
 
-export type Account = AccountInputType & {
+export type AccountInputType = AccountBaseType & { 
+    saleStatusId: string;
+}
+
+export type Account = AccountBaseType & {
     id: string;
     createdAt: Datetime;
     primary: boolean;
