@@ -87,37 +87,37 @@ export type ApiError<T = unknown> = {
  *     url: true
  *   }
  * });
- * 
- * // Use the result
- * console.log(res.id);                   // << Type: never
- * console.log(res.email);                // << Type: string
- * console.log(res.docs.length);          // << Value: 2
- * console.log(res.docs[0]!.id);          // << Type: string
- * console.log(res.address.country.code); // << Type: string
- *
- */
+* 
+* // Use the result
+* console.log(res.id);                   // << Type: never
+* console.log(res.email);                // << Type: string
+* console.log(res.docs.length);          // << Value: 2
+* console.log(res.docs[0]!.id);          // << Type: string
+* console.log(res.address.country.code); // << Type: string
+*
+*/
 
 export type Projection<T> = {
-  [K in keyof T]?:
+    [K in keyof T]?:
     T[K] extends Array<infer U>
-      ? Projection<U>
-      : T[K] extends null | string | number | boolean | undefined
-        ? boolean
-        : Projection<T[K]>;
+    ? Projection<U>
+    : T[K] extends null | string | number | boolean | undefined
+    ? boolean
+    : Projection<T[K]>;
 }
 
 export type Result<T, P> = P extends Projection<T>
-  ? {
-    [K in (keyof P & keyof T)]:
-      P[K] extends undefined | false
+    ? {
+        [K in (keyof P & keyof T)]:
+        P[K] extends undefined | false
         ? undefined
         : P[K] extends true
-          ? T[K]
-          : T[K] extends Array<infer U>
-            ? Array<Result<U, P[K]>>
-            : Result<T[K], P[K]>
-  }
-  : never;
+        ? T[K]
+        : T[K] extends Array<infer U>
+        ? Array<Result<U, P[K]>>
+        : Result<T[K], P[K]>
+    }
+    : never;
 
 /**
  * GraphQL responses consist of a possible array of errors and/or a data element with keys
@@ -142,17 +142,17 @@ export type Response<Data extends { [func: string]: unknown }, ErrorTypes = unkn
 
 export enum UserAccreditationStatus {
     NONE,
-    PENDING,
-    EXPIRED,
-    DOCUMENTATION_EXPIRED,
-    FINISHED,
-    FAILED,
+        PENDING,
+        EXPIRED,
+        DOCUMENTATION_EXPIRED,
+        FINISHED,
+        FAILED,
 }
 export enum UserAccreditationMode {
     SELF,
-    TOKENSOFT,
-    VI,
-    BYPASS,
+        TOKENSOFT,
+        VI,
+        BYPASS,
 }
 export type User = {
     id: string;
@@ -220,6 +220,31 @@ export type Address = {
     entityDba?: string;
     entityPhoneNumber?: string;
     additionalKycFields?: Array<{ key: string; value: string; description: string; }>;
+}
+
+export type AddressInput = {
+    firstName: string;
+    lastName: string;
+    dob?: string | null;
+    flatNumber?: string | null;
+    buildingNumber: string;
+    buildingName?: string | null;
+    streetLineOne: string;
+    streetLineTwo?: string | null;
+    country: string;
+    state: string;
+    city: string;
+    zipCode: string;
+    phoneNumber?: string | null;
+    entityName?: string | null;
+    entityBuildingNumber?: string | null;
+    entityStreetLineOne?: string | null;
+    entityCity?: string | null;
+    entityZipCode?: string | null;
+    entityState?: string | null;
+    entityCountry?: string | null;
+    entityPhoneNumber?: string | null;
+    investorType: InvestorEnum;
 }
 
 export type SaleRound = {
@@ -304,19 +329,15 @@ export type EntityRoles = {
     inviteDate: Datetime;
 }
 
-export type AccountBaseType = {
+export type AccountInputType = {
     address: string;
-    name?: string | null;
+    name: string;
     chain: CHAINS;
     type: RECEIVE_ADDRESS_TYPE;
     primary?: boolean | null;
 }
 
-export type AccountInputType = AccountBaseType & { 
-    saleStatusId: string;
-}
-
-export type Account = AccountBaseType & {
+export type Account = AccountInputType & {
     id: string;
     createdAt: Datetime;
     primary: boolean;
@@ -327,28 +348,38 @@ export type Account = AccountBaseType & {
     //revokeRequest: RevokeRequestType
 }
 
+export enum InvestorEnum {
+    MYSELF = "MYSELF",
+    ENTITY = "ENTITY",
+}
+
 export enum CHAINS {
     BITCOIN = "BITCOIN",
     ETHEREUM = "ETHEREUM",
-    AVA = "AVA",
-    CYPHERIUM = "CYPHERIUM",
-    RAVEN = "RAVEN",
-    FINDORA = "FINDORA",
 }
 
 export enum RECEIVE_ADDRESS_TYPE {
-    ANCHORAGE = "ANCHORAGE",
-    AVA = "AVA",
-    CYPHERIUM = "CYPHERIUM",
-    FINDORA = "FINDORA",
-    BITGO = "BITGO",
-    GEMINI = "GEMINI",
-    HEX = "HEX",
-    KOINE = "KOINE",
-    TIA = "TIA",
-    ETHEREUM = "ETHEREUM",
-    RAVEN = "RAVEN",
-    LEDGER = "LEDGER",
-    KOMAINU = "KOMAINU",
     UNKNOWN = "UNKNOWN",
+    CUSTODIAN = "CUSTODIAN",
 }
+
+export type ExternalWhitelistUserInput = {
+    tokenContractAddress: string;
+    email: string;
+    address: AddressInput;
+    account: AccountInputType;
+}
+
+export type ExternalUserLookupResponse = {
+    status: "ERROR"|"SUCCESS";
+    message?: string | null;
+    data?: ExternalUserLookupData | null;
+}
+
+export type ExternalUserLookupData = {
+    id: string;
+    email: string;
+    address: Address;
+    accounts: Array<Account>;
+}
+

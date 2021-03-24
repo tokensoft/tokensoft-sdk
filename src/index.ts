@@ -220,6 +220,27 @@ export interface TokensoftInterface {
         webhookUrl?: string
     ): Promise<string>;
 
+
+    /**
+     * Idempotently submit investor data and whitelist the given account
+     *
+     * @param accountId: string The id of the account being whitelisted. Note that each wallet
+     * an investor owns and wishes to transact with must be whitelisted separately.
+     * @param tokenContractId: string The Tokensoft id of the token. This will be provided by
+     * Tokensoft for each token and may be stored in configuration or database.
+     * @param webhookUrl?: string An optional webhook URL. A webhook will be sent on status change
+     * with a payload of type `WebhookResponse` (defined above).
+     * @return string The hash of the initial blockchain transaction created to whitelist the
+     * account. Note that there is no guarantee that this transaction will be the one to actually
+     * whitelist the account. The transaction may be mined and dropped, or it may be replaced by
+     * another with a higher gas price. The only way to know that the whitelisting worked is to
+     * receive a webhook via the webhookUrl parameter above.
+     */
+    externalWhitelistUser<P extends GraphQL.Projection<GraphQL.ExternalUserLookupResponse>>(
+        input: GraphQL.ExternalWhitelistUserInput,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.ExternalUserLookupResponse, P>>;
+
     /**
      * See if there are problems that will arise when trying to clear the given transaction
      */
@@ -631,6 +652,24 @@ export class TokensoftSDK implements TokensoftInterface {
 
         const res = await this.sendRequest<{ whitelistUser: string }>(body);
         return this.throwErrors(res).whitelistUser;
+    }
+
+    /**
+     * New version of whitelist account
+     */
+    async externalWhitelistUser<P extends GraphQL.Projection<GraphQL.ExternalUserLookupResponse>>(
+        input: GraphQL.ExternalWhitelistUserInput,
+        p: P
+    ): Promise<GraphQL.Result<GraphQL.ExternalUserLookupResponse, P>> {
+        const body = JSON.stringify({
+            query: `mutation ($input: ExternalWhitelistUserInput!) {
+                externalWhitelistUser(input:$input) ${this.constructProjection(p)}
+            }`,
+            variables: { input }
+        });
+
+        const res = await this.sendRequest<{ externalWhitelistUser: GraphQL.Result<GraphQL.ExternalUserLookupResponse, P> }>(body);
+        return this.throwErrors(res).externalWhitelistUser;
     }
 
     /**
