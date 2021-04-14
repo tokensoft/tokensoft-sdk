@@ -1,4 +1,4 @@
-import { AbiItem } from "./Eth";
+import { AbiItem } from "./Types";
 
 export const ERC1404: { abi: Array<AbiItem> } = {
     "abi": [
