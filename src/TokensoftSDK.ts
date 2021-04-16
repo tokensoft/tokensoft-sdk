@@ -433,12 +433,16 @@ export class TokensoftSDK implements Types.TokensoftInterface {
             tx.qtyBaseUnits
         ).call();
 
-        if (code === 0) {
+        if (Number(code) === 0) {
             return [];
         }
 
         const text = <string> await token.methods.messageForTransferRestriction(code).call();
-        return [{ code: String(code), text }];
+        return [{
+            code: text,
+            text: `Got error code ${code} ('${text}') from on-chain detectTransferRestriction ` +
+            `method`,
+        }];
     }
 
     /**
