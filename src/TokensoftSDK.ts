@@ -430,7 +430,7 @@ export class TokensoftSDK implements Types.TokensoftInterface {
         const code = await token.methods.detectTransferRestriction(
             tx.fromWallet,
             tx.toWallet,
-            tx.qtyBaseUnits
+            tx.qtyBaseUnits.toString(),
         ).call();
 
         if (Number(code) === 0) {

@@ -404,7 +404,7 @@ export interface Transaction {
     tokenAddress: string;
     fromWallet: string;
     toWallet: string;
-    qtyBaseUnits: number;
+    qtyBaseUnits: { toString(): string };
 }
 
 export enum UserAccreditationStatus {
