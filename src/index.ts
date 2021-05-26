@@ -54,8 +54,7 @@ export class TokensoftSDK {
 
         try {
             const res = await fetch(this.apiUrl, options)
-            const { data } = await res.json()
-            return data
+            return await res.json()
         } catch (e) {
             console.log('Error sending request to TokensoftApi: ', e)
             throw e
@@ -90,7 +89,7 @@ export class TokensoftSDK {
         const body = JSON.stringify({
             query: '{ currentUser {id email } }'
         })
-        return this.sendRequest(body)
+        return this.sendRequest(body).then(d => d?.data)
     }
 
     /**
@@ -120,7 +119,7 @@ export class TokensoftSDK {
             }`
         })
 
-        return this.sendRequest(body)
+        return this.sendRequest(body).then(d => d?.data)
     }
 
     /**
@@ -169,7 +168,7 @@ export class TokensoftSDK {
             }`
         })
 
-        return this.sendRequest(body)
+        return this.sendRequest(body).then(d => d?.data)
     }
 
 }
