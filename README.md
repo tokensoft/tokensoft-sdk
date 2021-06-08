@@ -57,3 +57,11 @@ const transactionHash = await client.authorizeUser('jay_clayton@gmail.com', '0x0
   }
 )
 ```
+
+
+## Changelog
+
+### 0.0.5 -> 1.0.0 (Breaking Change)
+
+* Changed return value of `sendRequest` to an object including both `.data` and `.errors`. Calls to `currentUser`, `authorizeUser`, and `AdminParticipantUsers` wrap this but remain unchanged in their return value.
+
