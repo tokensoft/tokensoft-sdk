@@ -1,5 +1,5 @@
 {
-  "name": "tokensoft-sdk",
+  "name": "@tokensoft/sdk",
   "version": "1.0.0",
   "description": "![Logo](./docs/img/logo.png)",
   "main": "build/index.js",
