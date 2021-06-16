@@ -25,4 +25,9 @@ describe('Base Unit Tests', () => {
       const client = await new TokensoftSDK('https://example.com', 'key', 'secret')
       expect(client.AdminParticipantUsers).toBeTruthy()
   })
+
+  it('can record a payment', async() => {
+    const client = await new TokensoftSDK('https://example.com', 'key', 'secret')
+      expect(client.recordPayment).toBeTruthy()
+  })
 })
