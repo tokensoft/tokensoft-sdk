@@ -13,6 +13,16 @@ interface KYCInfoInput {
     }
 }
 
+interface RecordPaymentInput {
+    paymentMethod: string,
+    id: string,
+    fromAddress: string,
+    blockNumber: string,
+    transactionHash: string,
+    eventIndex: string,
+    paymentAmount: string
+}
+
 export class TokensoftSDK {
     private keyId: string
     private secretKey: string
@@ -171,4 +181,36 @@ export class TokensoftSDK {
         return this.sendRequest(body).then(d => d?.data)
     }
 
+    /**
+     * Record a payment
+     * @param input
+     */
+     async recordPayment({
+        paymentMethod,
+        id,
+        fromAddress,
+        blockNumber,
+        transactionHash,
+        eventIndex,
+        paymentAmount
+      }: RecordPaymentInput
+    ): Promise<string> {
+        const body = JSON.stringify({
+            query: `mutation {
+                externalRecordPayment(
+                    paymentMethod: "${paymentMethod}",
+                    id: "${id}",
+                    fromAddress: "${fromAddress}",
+                    blockNumber: "${blockNumber}",
+                    transactionHash: "${transactionHash}"
+                    eventIndex: "${eventIndex}"
+                    paymentAmount: "${paymentAmount}"
+                ) {
+			        paymentId
+                }
+            }`
+        })
+
+        return this.sendRequest(body).then(d => d?.data)
+    }
 }
