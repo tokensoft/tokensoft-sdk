@@ -1,4 +1,4 @@
-# tokensoft-sdk
+# @tokensoft/sdk
 
 ![Logo](./docs/img/logo.png)
 
