@@ -211,6 +211,21 @@ export class TokensoftSDK {
             }`
         })
 
-        return this.sendRequest(body).then(d => d?.data)
+        const res = await this.sendRequest(body)
+  
+        if (
+            (!res.data || Object.values(res.data).find(v => v === null) !== undefined) &&
+            res.errors &&
+            res.errors.length
+        ) {
+            throw new Error(
+            res.errors
+                // @ts-ignore
+                .map(e => e.message)
+                .join('; ')
+            )
+        }
+
+        return res.data
     }
 }
