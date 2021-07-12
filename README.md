@@ -1,4 +1,4 @@
-# tokensoft-sdk
+# @tokensoft/sdk
 
 ![Logo](./docs/img/logo.png)
 
@@ -68,4 +68,8 @@ const transactionHash = await client.authorizeUser('jay_clayton@gmail.com', '0x0
 ### 1.0.0 -> 1.1.0
 
 * Added `recordPayment` function which can be used to call the `externalRecordPayment` endpoint
+
+### 1.1.0 -> 1.1.1
+
+* Refactored `recordPayment` to return an error if there is one
 
